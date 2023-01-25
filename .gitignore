@@ -1,2 +1,3 @@
 # Project exclude paths
 /services/bot-base-worker/node_modules/
+.env
