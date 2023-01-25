@@ -1,50 +1,19 @@
-# build stage
-#FROM node:stretch-slim
 FROM node:16.13.2
 
 ARG NPM_TOKEN
-RUN echo //registry.npmjs.org/:_authToken=${NPM_TOKEN} > ./.npmrc
-RUN npm --version
+ARG NODE_ENV
 
-#RUN npm install npm@5.3.0 -G
-#RUN mv node_modules/npm /usr/local/lib/node_modules/npm
-#RUN rm -rf /usr/local/lib/node_modules/npm
-RUN apt update && apt install wget libudev-dev libusb-1.0-0 -y
+RUN mkdir -p /usr/src/app
+WORKDIR /usr/src/app
+COPY package.json /usr/src/app/
 
-RUN npm --version
-
-#requirements for npm install
-#RUN apk add --update \
-#    python \
-#    python-dev \
-#    py-pip \
-#    build-base \
-#  && pip install virtualenv \
-#  && rm -rf /var/cache/apk/*
-
-#WORKDIR /app
-#COPY package*.json ./
-#RUN npm install
-COPY . .
-#RUN npm run build
-
-# production stage
-#FROM node:8
-
-# Create app directory
-WORKDIR .
-
-# Install app dependencies
-# A wildcard is used to ensure both package.json AND package-lock.json are copied
-# where available (npm@5+)
-#COPY package*.json ./
-
+RUN echo //registry.npmjs.org/:_authToken=${NPM_TOKEN} > /usr/src/app/.npmrc
 RUN npm install
-RUN npm run build
-# If you are building your code for production
-# RUN npm ci --only=production
 
-# Bundle app source
-COPY . .
+COPY . /usr/src/app
+RUN npm run build:all-prod
 
-CMD [ "npm", "start" ]
+ENV NODE_ENV docker
+
+#start
+CMD [ "npm", "run", "start" ]
