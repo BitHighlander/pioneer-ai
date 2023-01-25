@@ -6,6 +6,19 @@ executors:
       - image: circleci/node:14
 
 jobs:
+  make:
+    resource_class: large
+    executor: node
+    parameters:
+      env:
+        description: stage or prod
+        type: string
+    steps:
+      - checkout
+      - setup_remote_docker:
+          docker_layer_caching: true
+      - run:
+          command: "make"
   push:
     executor: node
     parameters:
