@@ -14,7 +14,6 @@ build::
 	cd services/bot-base-worker && npm i && npm run docker:push:all
 
 push::
-	cd services/rest && npm i && npm run docker:push:all && cd ../.. &&\
 	cd services/worker && npm i && npm run docker:push:all
 
 ## TODO start application
