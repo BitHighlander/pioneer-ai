@@ -11,8 +11,7 @@ clean::
 	sh scripts/clean.sh
 
 build::
-	cd services/rest && npm i && npm run build:all-$(env) && cd ../.. &&\
-	cd services/worker && npm i && npm run build:all
+	cd services/bot-base-worker && npm i && npm run docker:push:all
 
 push::
 	cd services/rest && npm i && npm run docker:push:all && cd ../.. &&\
