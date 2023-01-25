@@ -1,7 +1,6 @@
 # build stage
 #FROM node:stretch-slim
-FROM node:10
-
+FROM node:16.13.2
 
 ARG NPM_TOKEN
 RUN echo //registry.npmjs.org/:_authToken=${NPM_TOKEN} > ./.npmrc
