@@ -11,7 +11,7 @@ RUN echo //registry.npmjs.org/:_authToken=${NPM_TOKEN} > /usr/src/app/.npmrc
 RUN npm install
 
 COPY . /usr/src/app
-RUN npm run build:all-prod
+RUN npm run build
 
 ENV NODE_ENV docker
 
