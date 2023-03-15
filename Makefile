@@ -11,10 +11,11 @@ clean::
 	sh scripts/clean.sh
 
 build::
-	cd services/bot-base-worker && npm i && npm run docker:push:all
+    echo lol
 
 push::
-	cd services/worker && npm i && npm run docker:push:all
+	cd services/pioneer-bot && npm i && npm run docker:push:all
+	cd services/discord-bridge && npm i && npm run docker:push:all
 
 ## TODO start application
 up::
