@@ -20,7 +20,6 @@ const log = require('@pioneer-platform/loggerdog')()
 const {subscriber,publisher,redis,redisQueue} = require('@pioneer-platform/default-redis')
 
 const coincap = require('@pioneer-platform/ccbot-coincap');
-console.log(coincap)
 
 const Tokenizer = require('sentence-tokenizer');
 const tokenizer = new Tokenizer('reddit');
@@ -35,7 +34,7 @@ let PIONEER_DISCORD_BOT_CHANNEL = process.env['PIONEER_DISCORD_BOT_CHANNEL']
 let DISCORD_ADMIN_USERID = process.env['DISCORD_ADMIN_USERID']
 let PIONEER_BOT_NAME = process.env['PIONEER_BOT_NAME'] || 'pioneer'
 const { Configuration, OpenAIApi } = require("openai");
-let OPENAI_API_KEY = process.env.OPENAI_API_KEY
+let OPENAI_API_KEY = process.env.OPENAI_API_KEY_COPY || process.env.OPENAI_API_KEY
 if(!OPENAI_API_KEY) throw Error("missing OPENAI_API_KEY")
 const configuration = new Configuration({
     apiKey: process.env.OPENAI_API_KEY,

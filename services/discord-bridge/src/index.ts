@@ -69,7 +69,7 @@ interface Data {
   | 'DIRECT_MESSAGES'
   | 'DIRECT_MESSAGE_REACTIONS'
   | 'DIRECT_MESSAGE_TYPING';
- */
+*/
 
 const bot = new Client({
     intents: [
