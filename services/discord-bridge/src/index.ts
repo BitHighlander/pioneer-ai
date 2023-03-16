@@ -26,7 +26,7 @@ const Accounting = require('@pioneer-platform/accounting')
 const accounting = new Accounting(redis)
 
 const PIONEER_BOT_NAME = process.env['PIONEER_BOT_NAME']
-if(!PIONEER_BOT_NAME) throw Error("BOT_NAME required!")
+if(!PIONEER_BOT_NAME) throw Error("PIONEER_BOT_NAME required!")
 
 //mongo
 let connection  = require("@pioneer-platform/default-mongo")
@@ -38,6 +38,10 @@ const tokenizer = new Tokenizer('reddit');
 const { Client, Intents, EmbedBuilder, GatewayIntentBits } = require('discord.js');
 if(!EmbedBuilder) throw Error("Discord.js API changed!")
 if(!Client) throw Error("Discord.js API changed!")
+
+let PIONEER_NERF:any = process.env['PIONEER_NERF']
+PIONEER_NERF = true
+if(PIONEER_NERF)log.info(" PIONEER_NERFed!")
 
 interface Data {
     queueId:string
@@ -162,13 +166,10 @@ bot.on('messageCreate', async function (message:any) {
 
         //ccBot
         //filter by server
-
-
-
         if(message.author.id !== BOT_USER){
 
             //filter by channel
-            let workCreated = await queue.createWork("bots:"+PIONEER_BOT_NAME+":ingest",data)
+            let workCreated = await queue.createWork("bots:"+BOT_USER+":ingest",data)
             log.info(tag,"workCreated: ",workCreated)
             let response = await redisQueue.blpop(data.queueId, TIMEOUT_BOT_RESPONSE)
             log.info(tag,"response: ",response)
@@ -176,57 +177,9 @@ bot.on('messageCreate', async function (message:any) {
             //
             let responseString = response[1]
             let responses = JSON.parse(responseString)
-            message.channel.send(responses.sentences);
+            if(PIONEER_NERF) log.info("NERF: I WOULD BE SENDING MESSAGE: ",responses)
+            if(!PIONEER_NERF) message.channel.send(responses.sentences);
 
-
-            // log.info(tag," correct channel: ",discordChannel)
-            // // log.info("message: ",JSON.stringify(message))
-            // log.info(tag,"user: ",message.author.id)
-            // log.info(tag,"channel: ",message.channel.name)
-            // log.info(tag,"content: ",message.content)
-            // log.info(tag,"cleanContent: ",message.cleanContent)
-
-            //if valid
-            // let workCreated = await queue.createWork("bots:"+BOT_NAME+":ingest",data)
-            // log.info(tag,"workCreated: ",workCreated)
-            // let response = await redisQueue.blpop(data.queueId, TIMEOUT_BOT_RESPONSE)
-            // log.info(tag,"response: ",response)
-
-            // if(message.cleanContent && message.author.id){
-            //
-            //     //publish
-            //     log.info("Submit work: ",data)
-            //
-            //     queue.createWork("bots:"+BOT_NAME+":ingest",data)
-            //
-            //     //get response from ccBot
-            //     let response = await redisQueue.blpop(data.queueId, TIMEOUT_BOT_RESPONSE)
-            //     if(response){
-            //         log.info(tag," response: ",response)
-            //         if(!response[1]) throw Error('invalid response from ccbot!')
-            //         let responses = JSON.parse(response[1])
-            //         if(responses){
-            //             log.info(tag," responses: ",responses)
-            //             log.info(tag," responses: ",typeof(responses))
-            //
-            //             //if views
-            //             let embeds = []
-            //             for(let i = 0; i < responses.views.length; i++){
-            //                 let view = responses.views[i]
-            //
-            //             }
-            //
-            //
-            //         }
-            //     } else {
-            //         log.error("No reponse from bot!")
-            //     }
-            //
-            //
-            // } else {
-            //     log.error(tag,"invalid message! ",message)
-            //     log.error(tag,"cleanContent: ",message.cleanContent)
-            // }
         }
 
         return
