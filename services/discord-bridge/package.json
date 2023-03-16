@@ -1,5 +1,5 @@
 {
-  "name": "discord-bridge",
+  "name": "pioneer-discord-bridge",
   "version": "1.0.1",
   "private": true,
   "scripts": {
@@ -10,9 +10,9 @@
     "build": "tsc -p .",
     "dev": "npm run build && npm run start",
     "prepublish": "npm run build",
-    "docker:build": "docker build -t pioneer/discord-bridge:latest .",
-    "docker:tag": "docker tag pioneer/discord-bridge:latest registry.digitalocean.com/pioneer/pioneer/discord-bridge:latest",
-    "docker:push": "docker push registry.digitalocean.com/pioneer/pioneer/discord-bridge:latest",
+    "docker:build": "docker build -t pioneer/pioneer-discord-bridge:latest .",
+    "docker:tag": "docker tag pioneer/discord-bridge:latest registry.digitalocean.com/pioneer/pioneer/pioneer-discord-bridge:latest",
+    "docker:push": "docker push registry.digitalocean.com/pioneer/pioneer/pioneer-discord-bridge:latest",
     "docker:push:all": "npm run docker:build && npm run docker:tag && npm run docker:push"
   },
   "dependencies": {
