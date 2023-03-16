@@ -11,7 +11,7 @@
     "dev": "npm run build && npm run start",
     "prepublish": "npm run build",
     "docker:build": "docker build -t pioneer/pioneer-discord-bridge:latest .",
-    "docker:tag": "docker tag pioneer/discord-bridge:latest registry.digitalocean.com/pioneer/pioneer/pioneer-discord-bridge:latest",
+    "docker:tag": "docker tag pioneer/pioneer-discord-bridge:latest registry.digitalocean.com/pioneer/pioneer/pioneer-discord-bridge:latest",
     "docker:push": "docker push registry.digitalocean.com/pioneer/pioneer/pioneer-discord-bridge:latest",
     "docker:push:all": "npm run docker:build && npm run docker:tag && npm run docker:push"
   },
