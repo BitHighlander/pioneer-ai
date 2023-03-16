@@ -1,4 +1,4 @@
-SHELL=/bin/bash
+SHELL := /bin/bash
 
 env=prod
 debug=false
@@ -11,12 +11,8 @@ clean::
 	sh scripts/clean.sh
 
 build::
-    echo lol
+	echo lol
 
 push::
 	cd services/pioneer-bot && npm i && npm run docker:push:all
 	cd services/discord-bridge && npm i && npm run docker:push:all
-
-## TODO start application
-up::
-	echo "todo"
