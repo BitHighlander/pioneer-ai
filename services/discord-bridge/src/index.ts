@@ -83,8 +83,8 @@ const bot = new Client({
     ]
 });
 
-let discordChannel = process.env['DISCORD_BOT_CHANNEL']
-if(!discordChannel) throw Error("DISCORD_BOT_CHANNEL env required! ")
+let discordChannel = process.env['PIONEER_DISCORD_BOT_CHANNEL']
+if(!discordChannel) throw Error("PIONEER_DISCORD_BOT_CHANNEL env required! ")
 
 let DISCORD_ADMIN_USERID = process.env['DISCORD_ADMIN_USERID']
 if(!DISCORD_ADMIN_USERID) log.error(" no admins configured! ")
@@ -92,8 +92,8 @@ if(!DISCORD_ADMIN_USERID) log.error(" no admins configured! ")
 let TIMEOUT_BOT_RESPONSE = process.env['TIMEOUT_BOT_RESPONSE'] || 5
 
 let msg:any
-if(!process.env['DISCORD_BOT_TOKEN']) throw Error("env DISCORD_BOT_TOKEN required!")
-bot.login(process.env['DISCORD_BOT_TOKEN']);
+if(!process.env['PIONEER_DISCORD_BOT_TOKEN']) throw Error("env PIONEER_DISCORD_BOT_TOKEN required!")
+bot.login(process.env['PIONEER_DISCORD_BOT_TOKEN']);
 
 let BOT_USER:any
 bot.on('ready', () => {
