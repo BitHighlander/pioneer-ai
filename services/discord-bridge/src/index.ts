@@ -25,8 +25,8 @@ import {v4 as uuidv4} from 'uuid';
 const Accounting = require('@pioneer-platform/accounting')
 const accounting = new Accounting(redis)
 
-const BOT_NAME = process.env['BOT_NAME']
-if(!BOT_NAME) throw Error("BOT_NAME required!")
+const PIONEER_BOT_NAME = process.env['PIONEER_BOT_NAME']
+if(!PIONEER_BOT_NAME) throw Error("BOT_NAME required!")
 
 //mongo
 let connection  = require("@pioneer-platform/default-mongo")
@@ -167,7 +167,7 @@ bot.on('messageCreate', async function (message:any) {
         if(message.author.id !== BOT_USER){
 
             //filter by channel
-            let workCreated = await queue.createWork("bots:"+BOT_NAME+":ingest",data)
+            let workCreated = await queue.createWork("bots:"+PIONEER_BOT_NAME+":ingest",data)
             log.info(tag,"workCreated: ",workCreated)
             let response = await redisQueue.blpop(data.queueId, TIMEOUT_BOT_RESPONSE)
             log.info(tag,"response: ",response)
