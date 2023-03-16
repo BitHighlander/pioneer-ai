@@ -93,6 +93,7 @@ let TIMEOUT_BOT_RESPONSE = process.env['TIMEOUT_BOT_RESPONSE'] || 5
 
 let msg:any
 if(!process.env['PIONEER_DISCORD_BOT_TOKEN']) throw Error("env PIONEER_DISCORD_BOT_TOKEN required!")
+console.log(process.env['PIONEER_DISCORD_BOT_TOKEN'])
 bot.login(process.env['PIONEER_DISCORD_BOT_TOKEN']);
 
 let BOT_USER:any
