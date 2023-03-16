@@ -31,8 +31,9 @@ let wait = require('wait-promise');
 let sleep = wait.sleep;
 
 let discordChannel = process.env['DISCORD_BOT_CHANNEL']
+let PIONEER_DISCORD_BOT_CHANNEL = process.env['PIONEER_DISCORD_BOT_CHANNEL']
 let DISCORD_ADMIN_USERID = process.env['DISCORD_ADMIN_USERID']
-let BOT_NAME = process.env['BOT_NAME'] || 'pioneer'
+let PIONEER_BOT_NAME = process.env['PIONEER_BOT_NAME'] || 'pioneer'
 const { Configuration, OpenAIApi } = require("openai");
 let OPENAI_API_KEY = process.env.OPENAI_API_KEY
 if(!OPENAI_API_KEY) throw Error("missing OPENAI_API_KEY")
@@ -177,10 +178,10 @@ let do_work = async function(){
     let work
     try{
 
-        let allWork = await queue.count("bots:"+BOT_NAME+":ingest")
+        let allWork = await queue.count("bots:"+PIONEER_BOT_NAME+":ingest")
         log.debug(tag,"allWork: ",allWork)
 
-        work = await queue.getWork("bots:"+BOT_NAME+":ingest", 5)
+        work = await queue.getWork("bots:"+PIONEER_BOT_NAME+":ingest", 5)
         if(work){
             log.info("work: ",work)
             if(!work.queueId) throw Error("100: invalid work! missing queueId")
