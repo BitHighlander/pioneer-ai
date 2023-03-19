@@ -175,11 +175,12 @@ bot.on('messageCreate', async function (message:any) {
             log.info(tag,"response: ",response)
 
             //
-            let responseString = response[1]
-            let responses = JSON.parse(responseString)
-            if(PIONEER_NERF) log.info("NERF: I WOULD BE SENDING MESSAGE: ",responses)
-            if(!PIONEER_NERF) message.channel.send(responses.sentences);
-
+            if(response[1]){
+                let responseString = response[1]
+                let responses = JSON.parse(responseString)
+                if(PIONEER_NERF) log.info("NERF: I WOULD BE SENDING MESSAGE: ",responses)
+                if(!PIONEER_NERF) message.channel.send(responses.sentences);
+            }
         }
 
         return
