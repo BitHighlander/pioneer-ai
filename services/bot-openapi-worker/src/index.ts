@@ -53,6 +53,7 @@ const asciichart = require('asciichart');
 const usersDB = connection.get('usersCCbot')
 // usersDB.createIndex({username: 1}, {unique: true})
 usersDB.createIndex({user: 1}, {unique: true})
+let conversations = connection.get("conversations");
 
 let rive = require('@pioneer-platform/ccbot-rivescript-brain')
 //onStart
@@ -60,13 +61,13 @@ rive.initialize()
 
 interface Data {
     query: string
-    // queueId:string
-    // admin:boolean
-    // dm:boolean
-    // user:string
-    // username:string
-    // channel:string
-    // text:string
+    queueId:string
+    admin:boolean
+    dm:boolean
+    user:string
+    username:string
+    channel:string
+    text:string
 }
 
 /***********************************************
@@ -128,7 +129,7 @@ let do_work = async function(){
         work = await queue.getWork("bots:"+BOT_NAME+":ingest", 60)
         if(work){
             log.info("work: ",work)
-            if(!work.query) throw Error("100: invalid work! missing query")
+            if(!work.text) throw Error("100: invalid work! missing query")
             // if(!work.user) throw Error("101: invalid work! missing username")
             if(!work.username) throw Error("102: invalid work! missing username")
             // if(!work.text) throw Error("103: invalid work! missing text")

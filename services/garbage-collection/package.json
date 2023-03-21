@@ -1,5 +1,5 @@
 {
-  "name": "pioneer-bot",
+  "name": "garbage-collection",
   "version": "1.0.1",
   "private": true,
   "scripts": {
@@ -9,9 +9,9 @@
     "build": "tsc -p .",
     "dev": "npm run build && npm run start",
     "prepublish": "npm run build",
-    "docker:build": "docker build -t pioneer/pioneer-bot:latest .",
-    "docker:tag": "docker tag pioneer/pioneer-bot:latest registry.digitalocean.com/pioneer/pioneer/pioneer-bot:latest",
-    "docker:push": "docker push registry.digitalocean.com/pioneer/pioneer/pioneer-bot:latest",
+    "docker:build": "docker build -t pioneer/pioneer-ai:latest .",
+    "docker:tag": "docker tag pioneer/pioneer-ai:latest registry.digitalocean.com/pioneer/pioneer/pioneer-ai:latest",
+    "docker:push": "docker push registry.digitalocean.com/pioneer/pioneer/pioneer-ai:latest",
     "docker:push:all": "npm run docker:build && npm run docker:tag && npm run docker:push"
   },
   "dependencies": {
@@ -23,15 +23,14 @@
     "@pioneer-platform/default-mongo": "latest",
     "@pioneer-platform/default-redis": "latest",
     "@pioneer-platform/loggerdog": "latest",
+    "@pioneer-platform/pioneer-rebalance": "^6.2.9",
     "@pioneer-platform/redis-queue": "^8.1.6",
-    "@types/uuid": "^9.0.1",
     "asciichart": "^1.5.25",
     "chai": "^4.3.4",
     "dotenv": "^8.1.0",
     "node-cron": "^3.0.0",
-    "openai": "^3.2.1",
+    "openai": "^3.1.0",
     "sentence-tokenizer": "^1.0.1",
-    "uuid": "^9.0.0",
     "wait-promise": "^0.4.1"
   },
   "devDependencies": {

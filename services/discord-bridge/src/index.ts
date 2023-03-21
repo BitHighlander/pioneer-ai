@@ -30,7 +30,8 @@ if(!PIONEER_BOT_NAME) throw Error("PIONEER_BOT_NAME required!")
 
 //mongo
 let connection  = require("@pioneer-platform/default-mongo")
-let discordIn = connection.get("discordIn");
+let discordRaw = connection.get("discordRaw");
+let knowledge = connection.get("knowledge");
 
 const Tokenizer = require('sentence-tokenizer');
 const tokenizer = new Tokenizer('reddit');
@@ -39,9 +40,10 @@ const { Client, Intents, EmbedBuilder, GatewayIntentBits } = require('discord.js
 if(!EmbedBuilder) throw Error("Discord.js API changed!")
 if(!Client) throw Error("Discord.js API changed!")
 
-let PIONEER_NERF:any = process.env['PIONEER_NERF']
-PIONEER_NERF = true
-if(PIONEER_NERF)log.info(" PIONEER_NERFed!")
+// let PIONEER_NOT_NERFED:any = process.env['PIONEER_NOT_NERFED']
+let PIONEER_NOT_NERFED = true
+if(PIONEER_NOT_NERFED)log.info(" PIONEER LIVE! IT WILL RESPOND TO MESSAGES!")
+if(!PIONEER_NOT_NERFED)log.info(" PIONEER_NERFed!")
 
 interface Data {
     queueId:string
@@ -93,7 +95,7 @@ if(!discordChannel) throw Error("PIONEER_DISCORD_BOT_CHANNEL env required! ")
 let DISCORD_ADMIN_USERID = process.env['DISCORD_ADMIN_USERID']
 if(!DISCORD_ADMIN_USERID) log.error(" no admins configured! ")
 
-let TIMEOUT_BOT_RESPONSE = process.env['TIMEOUT_BOT_RESPONSE'] || 5
+let TIMEOUT_BOT_RESPONSE = process.env['TIMEOUT_BOT_RESPONSE'] || 600
 
 let msg:any
 if(!process.env['PIONEER_DISCORD_BOT_TOKEN']) throw Error("env PIONEER_DISCORD_BOT_TOKEN required!")
@@ -111,6 +113,7 @@ bot.on('ready', () => {
 bot.on('messageCreate', async function (message:any) {
     let tag = " | discord message | "
     try {
+
         // log.info(tag,"message: ",JSON.stringify(message))
         // log.info(tag,"message: ",message.toString())
         // log.info(tag,"user: ",message.author.id)
@@ -136,7 +139,7 @@ bot.on('messageCreate', async function (message:any) {
             text:message.cleanContent
         }
         log.info("Data: ",data)
-
+        discordRaw.insert(data)
         if(!message.channel.name && message.channel.type === 'DM'){
             log.info(tag,"DM detected!: ")
             // log.info("channel: ",message)
@@ -150,14 +153,17 @@ bot.on('messageCreate', async function (message:any) {
             if(message.author.id !== BOT_USER){
                 log.info(tag," publishing to ccBot")
                 //publish
-                queue.createWork("bots:ccbot:ingest",data)
+                queue.createWork("bots:"+BOT_USER+":ingest",data)
 
                 //get response from ccBot
                 let response = await redisQueue.blpop(data.queueId, TIMEOUT_BOT_RESPONSE)
                 if(response && response[0] && !response[1]) throw Error('invalid response from ccbot!')
-                let responses = JSON.parse(response[1])
-                log.info(tag," responses: ",responses)
-                log.info(tag," responses: ",typeof(responses))
+                if(response && response[1]){
+                    let responses = JSON.parse(response[1])
+                    log.info(tag," responses: ",responses)
+                    log.info(tag," responses: ",typeof(responses))
+                }
+
 
                 //if text based
 
@@ -169,17 +175,21 @@ bot.on('messageCreate', async function (message:any) {
         if(message.author.id !== BOT_USER){
 
             //filter by channel
-            let workCreated = await queue.createWork("bots:"+BOT_USER+":ingest",data)
+            let workCreated = await queue.createWork("bots:"+PIONEER_BOT_NAME+":ingest",data)
             log.info(tag,"workCreated: ",workCreated)
             let response = await redisQueue.blpop(data.queueId, TIMEOUT_BOT_RESPONSE)
             log.info(tag,"response: ",response)
 
             //
-            if(response[1]){
+            if(response && response[1]){
                 let responseString = response[1]
                 let responses = JSON.parse(responseString)
-                if(PIONEER_NERF) log.info("NERF: I WOULD BE SENDING MESSAGE: ",responses)
-                if(!PIONEER_NERF) message.channel.send(responses.sentences);
+                log.info(tag," responses: ",responses)
+                log.info(tag," responses: ",typeof(responses))
+                log.info(tag," responses: ",responses.sentences)
+                log.info(tag," responses: ",responses.sentences.toString())
+                if(!PIONEER_NOT_NERFED) log.info("NERF: I WOULD BE SENDING MESSAGE: ",responses)
+                if(PIONEER_NOT_NERFED) message.channel.send(responses.sentences.toString() || "");
             }
         }
 

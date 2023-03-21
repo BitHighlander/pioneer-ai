@@ -80,6 +80,7 @@ var asciichart = require('asciichart');
 var usersDB = connection.get('usersCCbot');
 // usersDB.createIndex({username: 1}, {unique: true})
 usersDB.createIndex({ user: 1 }, { unique: true });
+var conversations = connection.get("conversations");
 var rive = require('@pioneer-platform/ccbot-rivescript-brain');
 //onStart
 rive.initialize();

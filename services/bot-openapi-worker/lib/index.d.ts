@@ -20,6 +20,7 @@ declare const configuration: any;
 declare const openai: any;
 declare const asciichart: any;
 declare const usersDB: any;
+declare let conversations: any;
 declare let rive: any;
 interface Data {
     query: string;
