@@ -6,6 +6,8 @@
     No bot logic
 
     Multi-plex for multiple bots and channels
+        https://discordapp.com/oauth2/authorize?&client_id=865670112611008524&scope=bot&permission=8
+
 
  */
 let TAG = ' | discord-bridge | '
@@ -173,23 +175,24 @@ bot.on('messageCreate', async function (message:any) {
         //ccBot
         //filter by server
         if(message.author.id !== BOT_USER){
+            if(message.channel.name === discordChannel){
+                //filter by channel
+                let workCreated = await queue.createWork("bots:"+PIONEER_BOT_NAME+":ingest",data)
+                log.info(tag,"workCreated: ",workCreated)
+                let response = await redisQueue.blpop(data.queueId, TIMEOUT_BOT_RESPONSE)
+                log.info(tag,"response: ",response)
 
-            //filter by channel
-            let workCreated = await queue.createWork("bots:"+PIONEER_BOT_NAME+":ingest",data)
-            log.info(tag,"workCreated: ",workCreated)
-            let response = await redisQueue.blpop(data.queueId, TIMEOUT_BOT_RESPONSE)
-            log.info(tag,"response: ",response)
-
-            //
-            if(response && response[1]){
-                let responseString = response[1]
-                let responses = JSON.parse(responseString)
-                log.info(tag," responses: ",responses)
-                log.info(tag," responses: ",typeof(responses))
-                log.info(tag," responses: ",responses.sentences)
-                log.info(tag," responses: ",responses.sentences.toString())
-                if(!PIONEER_NOT_NERFED) log.info("NERF: I WOULD BE SENDING MESSAGE: ",responses)
-                if(PIONEER_NOT_NERFED) message.channel.send(responses.sentences.toString() || "");
+                //
+                if(response && response[1]){
+                    let responseString = response[1]
+                    let responses = JSON.parse(responseString)
+                    log.info(tag," responses: ",responses)
+                    log.info(tag," responses: ",typeof(responses))
+                    log.info(tag," responses: ",responses.sentences)
+                    log.info(tag," responses: ",responses.sentences.toString())
+                    if(!PIONEER_NOT_NERFED) log.info("NERF: I WOULD BE SENDING MESSAGE: ",responses)
+                    if(PIONEER_NOT_NERFED) message.channel.send(responses.sentences.toString() || "");
+                }
             }
         }
 
