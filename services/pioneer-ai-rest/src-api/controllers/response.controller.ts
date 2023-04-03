@@ -36,7 +36,7 @@ export class ResponseController extends Controller {
 
 
     /*
-     * register Affiliate
+     * response
      *
      *
      *

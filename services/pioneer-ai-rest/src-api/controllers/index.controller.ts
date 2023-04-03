@@ -72,4 +72,42 @@ export class IndexController extends Controller {
             throw new ApiError("error",503,"error: "+e.toString());
         }
     }
+
+    /*
+        Get user by address
+
+     */
+    @Get('/user/address/{address}')
+    public async user(address:string) {
+        let tag = TAG + " | user | "
+        try{
+
+            let status:any = await redis.hgetall("info:health")
+
+            return(true)
+        }catch(e){
+            let errorResp:Error = {
+                success:false,
+                tag,
+                e
+            }
+            log.error(tag,"e: ",{errorResp})
+            throw new ApiError("error",503,"error: "+e.toString());
+        }
+    }
+
+    /*
+        Create user
+
+     */
+
+    /*
+        generate deposit split
+
+     */
+
+    /*
+        check deposit split
+
+     */
 }

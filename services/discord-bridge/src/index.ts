@@ -38,7 +38,7 @@ let knowledge = connection.get("knowledge");
 const Tokenizer = require('sentence-tokenizer');
 const tokenizer = new Tokenizer('reddit');
 
-const { Client, Intents, EmbedBuilder, GatewayIntentBits } = require('discord.js');
+const { Client, Intents, Partials, EmbedBuilder, GatewayIntentBits } = require('discord.js');
 if(!EmbedBuilder) throw Error("Discord.js API changed!")
 if(!Client) throw Error("Discord.js API changed!")
 
@@ -78,6 +78,10 @@ interface Data {
 const bot = new Client({
     intents: [
         GatewayIntentBits.Guilds,
+        GatewayIntentBits.GuildMembers,
+        GatewayIntentBits.MessageContent,
+        GatewayIntentBits.DirectMessageTyping,
+        GatewayIntentBits.GuildMessageTyping,
         GatewayIntentBits.DirectMessages,
         GatewayIntentBits.MessageContent,
         GatewayIntentBits.DirectMessageReactions,
@@ -87,7 +91,7 @@ const bot = new Client({
         GatewayIntentBits.GuildMessageReactions
     ],
     partials:[
-        'CHANNEL'
+        Partials.Message, Partials.Channel, Partials.Reaction, Partials.GuildMember, Partials.User
     ]
 });
 
@@ -111,16 +115,31 @@ bot.on('ready', () => {
     BOT_USER = bot.user.id
 });
 
+bot.on('message', (message: { channel: { type: string }; reply: (arg0: string) => void }) => {
+    console.log("message: ",message)
+    if (message.channel.type === 'dm') {
+        message.reply('Thanks for messaging me! How can I help you?');
+    }
+});
+
+bot.on('interactionCreate', async (interaction: { isChatInputCommand: () => any; commandName: string; reply: (arg0: string) => any }) => {
+    if (!interaction.isChatInputCommand()) return;
+    console.log("interactionCreate: ",interaction)
+
+    if (interaction.commandName === 'ping') {
+        await interaction.reply('Pong!');
+    }
+});
 
 bot.on('messageCreate', async function (message:any) {
     let tag = " | discord message | "
     try {
 
-        // log.info(tag,"message: ",JSON.stringify(message))
-        // log.info(tag,"message: ",message.toString())
-        // log.info(tag,"user: ",message.author.id)
-        // log.info(tag,"channel: ",message.channel.name)
-        // log.info(tag,"content: ",message.content)
+        log.info(tag,"message: ",JSON.stringify(message))
+        log.info(tag,"message: ",message.toString())
+        log.info(tag,"user: ",message.author.id)
+        log.info(tag,"channel: ",message.channel.name)
+        log.info(tag,"content: ",message.content)
 
         let admin = false
         let dm = false
@@ -142,7 +161,7 @@ bot.on('messageCreate', async function (message:any) {
         }
         log.info("Data: ",data)
         discordRaw.insert(data)
-        if(!message.channel.name && message.channel.type === 'DM'){
+        if(!message.guildId){
             log.info(tag,"DM detected!: ")
             // log.info("channel: ",message)
             // log.info("user: ",message.author.id)
@@ -152,33 +171,26 @@ bot.on('messageCreate', async function (message:any) {
             dm = true
 
             //if message is NOT ccbot
-            if(message.author.id !== BOT_USER){
-                log.info(tag," publishing to ccBot")
-                //publish
-                queue.createWork("bots:"+BOT_USER+":ingest",data)
 
-                //get response from ccBot
-                let response = await redisQueue.blpop(data.queueId, TIMEOUT_BOT_RESPONSE)
-                if(response && response[0] && !response[1]) throw Error('invalid response from ccbot!')
-                if(response && response[1]){
-                    let responses = JSON.parse(response[1])
-                    log.info(tag," responses: ",responses)
-                    log.info(tag," responses: ",typeof(responses))
-                }
-
-
-                //if text based
-
-            }
         }
 
-        //ccBot
-        //filter by server
+        //ccBot dont respond to itself
         if(message.author.id !== BOT_USER){
-            if(message.channel.name === discordChannel){
+            //filter by server
+            if(!dm){
+                let guildInfo = await bot.guilds.fetch(message.guildId)
+                log.info(tag,"guildInfo: ",guildInfo)
+                message.guildInfo = guildInfo
+            }
+
+
+            //filter by channel
+            if(message.channel.name === discordChannel || dm){
                 //filter by channel
                 let workCreated = await queue.createWork("bots:"+PIONEER_BOT_NAME+":ingest",data)
                 log.info(tag,"workCreated: ",workCreated)
+
+                message.channel.send("thinking...");
                 let response = await redisQueue.blpop(data.queueId, TIMEOUT_BOT_RESPONSE)
                 log.info(tag,"response: ",response)
 
@@ -190,8 +202,10 @@ bot.on('messageCreate', async function (message:any) {
                     log.info(tag," responses: ",typeof(responses))
                     log.info(tag," responses: ",responses.sentences)
                     log.info(tag," responses: ",responses.sentences.toString())
-                    if(!PIONEER_NOT_NERFED) log.info("NERF: I WOULD BE SENDING MESSAGE: ",responses)
-                    if(PIONEER_NOT_NERFED) message.channel.send(responses.sentences.toString() || "");
+                    if(responses.sentences && responses.sentences.length > 0){
+                        if(!PIONEER_NOT_NERFED) log.info("NERF: I WOULD BE SENDING MESSAGE: ",responses)
+                        if(PIONEER_NOT_NERFED) message.channel.send(responses.sentences.toString() || "");
+                    }
                 }
             }
         }

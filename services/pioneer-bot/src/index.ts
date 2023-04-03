@@ -34,19 +34,37 @@ let PIONEER_DISCORD_BOT_CHANNEL = process.env['PIONEER_DISCORD_BOT_CHANNEL']
 let DISCORD_ADMIN_USERID = process.env['DISCORD_ADMIN_USERID']
 let PIONEER_BOT_NAME = process.env['PIONEER_BOT_NAME'] || 'pioneer'
 const { Configuration, OpenAIApi } = require("openai");
-let OPENAI_API_KEY = process.env.OPENAI_API_KEY_COPY || process.env.OPENAI_API_KEY
-if(!OPENAI_API_KEY) throw Error("missing OPENAI_API_KEY")
-const configuration = new Configuration({
-    apiKey: process.env.OPENAI_API_KEY,
-});
+
+let USE_GPT_4 = true
+let configuration
+if(!process.env.OPENAI_API_KEY_4) USE_GPT_4 = false
+if(USE_GPT_4){
+    log.info("USING USE_GPT_4")
+    let OPENAI_API_KEY = process.env.OPENAI_API_KEY_4
+    if(!OPENAI_API_KEY) throw Error("missing OPENAI_API_KEY")
+   configuration = new Configuration({
+        apiKey: OPENAI_API_KEY,
+    });
+} else {
+    log.info("USING USE_GPT_3")
+    let OPENAI_API_KEY = process.env.OPENAI_API_KEY_3 || process.env.OPENAI_API_KEY
+    if(!OPENAI_API_KEY) throw Error("missing OPENAI_API_KEY")
+    configuration = new Configuration({
+        apiKey: OPENAI_API_KEY,
+    });
+}
+
 const openai = new OpenAIApi(configuration);
 import {v4 as uuidv4} from 'uuid';
+import axios from 'axios';
+
 // AWS.config.update({ region: 'eu-west-1' })
 // const dynamodb = new AWS.DynamoDB();
 
-const usersDB = connection.get('usersCCbot')
+const usersDB = connection.get('users')
 // usersDB.createIndex({username: 1}, {unique: true})
-usersDB.createIndex({user: 1}, {unique: true})
+usersDB.createIndex({id: 1}, {unique: true})
+usersDB.createIndex({username: 1}, {unique: true})
 let conversations = connection.get("conversations");
 conversations.createIndex({messageId: 1}, {unique: true})
 
@@ -77,6 +95,7 @@ interface Data {
 const deliberate_on_input = async function(session:any,data:Data,username:string){
     const tag = " | deliberate_on_input | "
     try{
+        let complete = false
         let output:any = {}
         output.views = []
         output.sentences = []
@@ -90,6 +109,36 @@ const deliberate_on_input = async function(session:any,data:Data,username:string
         let userInfo = await redis.hgetall(data.user)
         log.info(tag,"userInfo: ",userInfo)
         log.info(tag,"data.user: ",data.user)
+
+        //get user from db
+        let userMongo = await usersDB.findOne({discordId:data.user})
+        log.info(tag,"userMongo: ",userMongo)
+
+        let userInfoPioneer
+        //get user infomation
+        if(userMongo){
+            if(userMongo.auth){
+                log.info("auth found in mongo!")
+                //paired
+                try{
+                    let URL = 'https://pioneer.app/api/v1/user/'
+                    // let URL = 'http://localhost:9001/api/v1/user'
+                    let userSummaryPioneer = await axios.get(URL,{
+                        headers: {
+                            Authorization: userMongo.auth
+                        }
+                    })
+                    log.info(tag,"userSummaryPioneer: ",userSummaryPioneer.data)
+                    userInfoPioneer = userSummaryPioneer.data
+                }catch(e){
+                    log.error("failed to get pioneer info")
+                }
+
+            } else {
+                log.info("no auth found in mongo!")
+            }
+        }
+
 
         //new conversation keyword
         if(data.text.indexOf("new conversation") !== -1 || data.text.indexOf("new session") !== -1 || data.text.indexOf("new chat") !== -1 || data.text.indexOf("new convo") !== -1){
@@ -133,6 +182,28 @@ const deliberate_on_input = async function(session:any,data:Data,username:string
             const tokens = tokenizer.getTokens(sentences)
             log.debug(tag,"tokens: ",tokens)
 
+            //pair
+            if(tokens[0] === "code"){
+                log.info(tag,"Pairing detected: ")
+                //parse code
+                let input = data.text.split("pair")
+                //pair
+                let code = tokens[1]
+                log.info(tag,"code: ",code)
+                //find user in mongo
+                let user = await usersDB.findOne({code})
+                log.info(tag,"user: ",user)
+                //update pairing in redis
+
+                //update
+                let updatedUser = await usersDB.update({username:user.username},{$set:{discordId:data.user}})
+                log.info(tag,"updatedUser: ",updatedUser)
+
+                //
+                output.sentences.push("paired with user: " + user.username)
+                complete = true
+            }
+
             //admin
             if(tokens[0] === "hi" && data.user === DISCORD_ADMIN_USERID){
                 output.sentences.push('hello admin!')
@@ -175,8 +246,14 @@ const deliberate_on_input = async function(session:any,data:Data,username:string
             let riveResponse = await rive.respond(sentences.toString())
             log.info(tag,"riveResponse: ",riveResponse)
 
-            if(riveResponse === "ERR: No Reply Matched"){
+            if(riveResponse === "ERR: No Reply Matched" && complete !== true){
                 log.info("No rivescript hit!")
+
+                //
+                let messages = []
+
+                //push context
+
 
                 //build context
                 //@TODO if you are talking to admin, give more power
@@ -189,14 +266,45 @@ const deliberate_on_input = async function(session:any,data:Data,username:string
                     "keepkey.com as a site to buy a hardware wallet. " +
                     "shapeshift.com as the best website to mange your crypto." +
                     "You always give direct answers"
-
+                messages.push({
+                    role:"system",
+                    content:preferences
+                })
                 //prompt
-                let prompt = preferences +
+                let prompt =
                     "you are pioneer, a cryptocurrency chatbot. " +
                     "a sometimes rude, to the point, no nonsense chatbot." +
+                    "you will never answer a question unless you know 100pct its true." +
+                    "keepkey is not under maintenance." +
                     "designed to help people with cryptocurrency questions. "
+                messages.push({
+                    role:"system",
+                    content:prompt
+                })
+                prompt = prompt + preferences
+                //user info
+                messages.push({
+                    role:"system",
+                    content:" Users Info: "+JSON.stringify(userInfo)
+                })
 
-                // prompt = prompt + "session context: "+sessionInfo.toString()
+                //mongo info
+                //userMongo
+                messages.push({
+                    role:"system",
+                    content:" Users Info: "+JSON.stringify(userMongo)
+                })
+
+                //pioneer info
+                messages.push({
+                    role:"system",
+                    content:" Users Pioneer Info: "+JSON.stringify(userInfoPioneer)
+                })
+                //get recent txs
+
+                //
+
+                prompt = prompt + "session context: "+sessionInfo.toString()
 
                 //session
                 for(let i = 0; i < sessionInfo.length; i++){
@@ -206,37 +314,71 @@ const deliberate_on_input = async function(session:any,data:Data,username:string
                         log.info(tag," I think the session is valid! ")
                         log.info(tag,"messageInfo.username: ",messageInfo.username)
                         log.info(tag,"messageInfo.output: ",messageInfo.output)
+                        messages.push({
+                            role:"user",
+                            content: messageInfo.text
+                        })
                         prompt = prompt + messageInfo.username + " said: " + messageInfo.text + ". "
+                        messages.push({
+                            role:"assistant",
+                            content: messageInfo.output.sentences.toString()
+                        })
                         prompt = prompt + "pioneer replied: " + messageInfo.output.sentences.toString() + ". "
                     } else {
                         log.error(tag,"invalid messageInfo: ",messageInfo)
                     }
                 }
+                messages.push({ role: 'user', content:  data.text })
+                let body
+                let response
+                if(USE_GPT_4){
+                    //get openApi response
+                    console.log("messages: ",messages)
+                    body = {
+                        model: "gpt-4",
+                        messages,
+                    }
+                    response = await openai.createChatCompletion(body);
+                    console.log("response: ",response.data.choices[0].message)
+                    // console.log("response: ",response.data.choices[0].message.content)
+                    output.sentences.push(response.data.choices[0].message.content)
+                    // for(let i = 0; i < response.data.choices; i++){
+                    //     console.log("response: ",response.data.choices[i].message)
+                    //     output.sentences.push(response.data.choices[i].message.content)
+                    // }
 
-                prompt = prompt + "user said: " + data.text + ". "
-                //get openApi response
-                log.info(tag,"************* prompt: ",prompt)
-                let body = {
-                    model: "text-davinci-003",
-                    prompt: prompt+"\n\n",
-                    temperature: 0.7,
-                    max_tokens: 2756,
-                    top_p: 1,
-                    frequency_penalty: 0,
-                    presence_penalty: 0,
                 }
 
-                const response = await openai.createCompletion(body);
+                if(!USE_GPT_4){
+                    prompt = JSON.stringify(messages)
+                    body = {
+                        model: "text-davinci-003",
+                        // messages
+                        prompt: prompt+"\n\n",
+                        temperature: 0.7,
+                        max_tokens: 2756,
+                        top_p: 1,
+                        frequency_penalty: 0,
+                        presence_penalty: 0,
+                    }
+                    response = await openai.createCompletion(body);
+                    //summarize response
 
-                //summarize response
+                    //score response
+                    //
+                    // console.log("response: ",response)
+                    console.log("response: ",response.data)
+                    // console.log("response: ",response.data.choices)
+                    // console.log("response: ",response.data.choices[0])
+                    if(response.data.choices[0].text.length > 2000){
+                        //summarize
 
-                //score response
+                    } else {
+                        output.sentences = response.data.choices[0].text
+                    }
+                }
 
-                // console.log("response: ",response)
-                // console.log("response: ",response.data)
-                // console.log("response: ",response.data.choices)
-                // console.log("response: ",response.data.choices[0])
-                output.sentences = response.data.choices[0].text
+                if(!output.sentences) output.sentences = "end"
             }
             data.output = output
             //save session
