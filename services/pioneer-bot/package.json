@@ -7,7 +7,7 @@
     "start": "node lib/index",
     "test": "npm run build && node lib/index",
     "build": "tsc -p .",
-    "dev": "npm run build && npm run start",
+    "dev-bot": "npm run build && npm run start",
     "prepublish": "npm run build",
     "docker:build": "docker build -t pioneer/pioneer-bot:latest .",
     "docker:tag": "docker tag pioneer/pioneer-bot:latest registry.digitalocean.com/pioneer/pioneer/pioneer-bot:latest",

@@ -16,3 +16,7 @@ build::
 push::
 	cd services/pioneer-bot && npm i && npm run docker:push:all
 	cd services/discord-bridge && npm i && npm run docker:push:all
+
+dev::
+	cd services/pioneer-bot && npm i && npm run dev &
+	cd services/discord-bridge && npm i && npm run dev &

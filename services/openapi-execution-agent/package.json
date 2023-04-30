@@ -1,5 +1,5 @@
 {
-  "name": "ccbot",
+  "name": "worker-gen1",
   "version": "1.0.1",
   "private": true,
   "scripts": {
@@ -7,7 +7,7 @@
     "start": "node lib/index",
     "test": "npm run build && node lib/index",
     "build": "tsc -p .",
-    "dev": "npm run build && npm run start",
+    "dev-exec": "npm run build && npm run start",
     "prepublish": "npm run build",
     "docker:build": "docker build -t pioneer/pioneer-ai:latest .",
     "docker:tag": "docker tag pioneer/pioneer-ai:latest registry.digitalocean.com/pioneer/pioneer/pioneer-ai:latest",
@@ -28,9 +28,11 @@
     "asciichart": "^1.5.25",
     "chai": "^4.3.4",
     "dotenv": "^8.1.0",
+    "get-bitcoin-price": "^1.0.1",
     "node-cron": "^3.0.0",
-    "openai": "^3.1.0",
+    "openai": "^3.2.1",
     "sentence-tokenizer": "^1.0.1",
+    "short-uuid": "^4.2.2",
     "wait-promise": "^0.4.1"
   },
   "devDependencies": {

@@ -1,6 +1,9 @@
 {
   "name": "pioneer-ai",
   "version": "1.0.0",
+  "scripts": {
+    "dev": "make dev"
+  },
   "dependencies": {
   }
 }

@@ -55,6 +55,14 @@ interface Data {
     username:string
     channel:string
     text:string
+    discordName?:string
+    discordId?:string
+    sessionId?:string
+    messageId?:string
+    output?:{
+        views:any
+        sentences:any
+    }
 }
 
 /*
@@ -131,6 +139,103 @@ bot.on('interactionCreate', async (interaction: { isChatInputCommand: () => any;
     }
 });
 
+const create_view = async function(view:any,message:any,data:any){
+    let tag = TAG + " | create_view | "
+    try{
+        log.info(tag,{view,message,data})
+        let output:any = {
+            embeds:[]
+        }
+        switch(view.type) {
+            case 'task':
+
+                let allFields:any = []
+                for(let i = 0; i < view.data.steps.length; i++){
+                    let step = view.data.steps[i]
+                    let entry = {
+                        name:" ("+ i+1 + ") "+step.name,
+                        value:"type: "+step.type + " input:" + step.input + "  action: " +step.action,
+                        inline: true,
+                        setColor: '#ff002b'
+                    }
+                    allFields.push(entry)
+                }
+
+                // code block
+                const embed = new EmbedBuilder()
+                    .setColor('#0099ff')
+                    .setTitle(data.summary)
+                    .setDescription(data.finalGoal)
+                    .addFields(
+                        allFields
+                    )
+                    .setFooter({ text: "Pioneer", iconURL: "https://cdn3.vectorstock.com/i/1000x1000/50/22/green-compass-vector-3755022.jpg" });
+
+
+                output.embeds.push(embed)
+                break;
+            default:
+            // code block
+        }
+
+        return output
+    }catch(e){
+        log.error(e)
+    }
+}
+
+
+//sub to redis for push messages
+subscriber.subscribe('discord-bridge')
+subscriber.on('message', async function (channel:string, payloadS:string) {
+    let tag = TAG + ' | publishToFront | ';
+    try {
+        log.info(tag,channel+ " event: ",payloadS)
+        //Push event over socket
+        let payload = JSON.parse(payloadS)
+
+        //expect channelID
+        if(!payload.channel) throw Error("payload.channel required!")
+        if(!payload.responses) throw Error("payload.responses required!")
+        // if(!payload.discord) throw Error("payload.discord required!")
+
+        // Find the channel you want to send the message to
+        const channelObj = bot.channels.cache.get(payload.channel);
+
+        if(payload.responses.sentences && payload.responses.sentences.length > 0){
+            // Send the message to the channel
+            channelObj.send(payload.message)
+                .then(() => {
+                    log.info(`Message sent to channel ${channelObj.name}: ${payload.message}`);
+                })
+                .catch(console.error);
+        }
+
+        //views
+        if(payload.responses.views && payload.responses.views.length > 0){
+            for(let i = 0; i < payload.responses.views.length; i++){
+                let view = payload.responses.views[i]
+                log.info(tag,"view: ",view)
+
+                let output = await create_view(view,view.message,view.data)
+                log.info(tag,"output: ",output)
+
+                if(output.embeds.length > 0){
+                    channelObj.send(output)
+                        .then(() => {
+                            log.info(`Message sent to channel ${channelObj.name}: `,output);
+                        })
+                        .catch(console.error);
+                }
+            }
+        }
+
+    } catch (e) {
+        log.error(tag, e);
+        //throw e
+    }
+});
+
 bot.on('messageCreate', async function (message:any) {
     let tag = " | discord message | "
     try {
@@ -181,6 +286,8 @@ bot.on('messageCreate', async function (message:any) {
                 let guildInfo = await bot.guilds.fetch(message.guildId)
                 log.info(tag,"guildInfo: ",guildInfo)
                 message.guildInfo = guildInfo
+                data.discordName = guildInfo.name
+                data.discordId = message.guildId
             }
 
 
@@ -201,11 +308,20 @@ bot.on('messageCreate', async function (message:any) {
                     log.info(tag," responses: ",responses)
                     log.info(tag," responses: ",typeof(responses))
                     log.info(tag," responses: ",responses.sentences)
-                    log.info(tag," responses: ",responses.sentences.toString())
                     if(responses.sentences && responses.sentences.length > 0){
                         if(!PIONEER_NOT_NERFED) log.info("NERF: I WOULD BE SENDING MESSAGE: ",responses)
                         if(PIONEER_NOT_NERFED) message.channel.send(responses.sentences.toString() || "");
                     }
+
+                    //views
+                    if(responses.views && responses.views.length > 0){
+                        for (const view of responses.views) {
+                            let output = await create_view(view,message,data)
+                            log.info(tag,"output: ",output)
+                            message.channel.send(output)
+                        }
+                    }
+
                 }
             }
         }
@@ -213,7 +329,7 @@ bot.on('messageCreate', async function (message:any) {
         return
     } catch (e) {
         console.error('e', e)
-        throw e
+        // throw e
     }
 })
 

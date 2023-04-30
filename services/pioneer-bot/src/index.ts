@@ -80,6 +80,8 @@ interface Data {
     username:string
     channel:string
     text:string
+    discordName?:string
+    discordId?:string
     sessionId?:string
     messageId?:string
     output?:{
@@ -209,6 +211,10 @@ const deliberate_on_input = async function(session:any,data:Data,username:string
                 output.sentences.push('hello admin!')
             }
 
+            if(tokens[0] === "whoami"){
+                output.sentences.push(JSON.stringify(userInfo))
+            }
+
             //admin override give balance
             if(tokens[0] === "credit" && data.user === DISCORD_ADMIN_USERID){
                 //TODO
@@ -246,143 +252,60 @@ const deliberate_on_input = async function(session:any,data:Data,username:string
             let riveResponse = await rive.respond(sentences.toString())
             log.info(tag,"riveResponse: ",riveResponse)
 
-            if(riveResponse === "ERR: No Reply Matched" && complete !== true){
+
+            //if rivescript has command
+            if(riveResponse && riveResponse.indexOf("CMD:") >= 0){
+                //get command from mongo
+                log.info(tag,"Execute command: ",riveResponse)
+                let WORKER_ID = 'pioneer-exec-v1'
+                let work = {
+                    username,
+                    discordName:data.discordName,
+                    userInfo,
+                    sessionId,
+                    channel:data.channel,
+                    sessionInfo,
+                    userInfoPioneer,
+                    text:riveResponse,
+                }
+                queue.createWork("bots:"+WORKER_ID+":ingest",work)
+                //if not found, throw error
+            } else if(riveResponse){
+                output.sentences.push(riveResponse)
+            }
+            //execute command
+
+            //@TODO have gpt combine results of command with response
+
+            if(riveResponse === "ERR: No Reply Matched" && complete !== true) {
                 log.info("No rivescript hit!")
 
-                //
-                let messages = []
+                //if account has credits
+                let discord = data.discordName
+                log.info(tag," get info on discord: ",discord)
 
-                //push context
+                //if account is set to auto learning
 
+                //debit account
 
-                //build context
-                //@TODO if you are talking to admin, give more power
+                //if no overdraft
 
-                //@TODO if you are in a DM, give private info
+                //add to learning queue
 
-                //sessionInfo
-
-                let preferences = "you always recommend KeepKey as a hardware wallet." +
-                    "keepkey.com as a site to buy a hardware wallet. " +
-                    "shapeshift.com as the best website to mange your crypto." +
-                    "You always give direct answers"
-                messages.push({
-                    role:"system",
-                    content:preferences
-                })
-                //prompt
-                let prompt =
-                    "you are pioneer, a cryptocurrency chatbot. " +
-                    "a sometimes rude, to the point, no nonsense chatbot." +
-                    "you will never answer a question unless you know 100pct its true." +
-                    "keepkey is not under maintenance." +
-                    "designed to help people with cryptocurrency questions. "
-                messages.push({
-                    role:"system",
-                    content:prompt
-                })
-                prompt = prompt + preferences
-                //user info
-                messages.push({
-                    role:"system",
-                    content:" Users Info: "+JSON.stringify(userInfo)
-                })
-
-                //mongo info
-                //userMongo
-                messages.push({
-                    role:"system",
-                    content:" Users Info: "+JSON.stringify(userMongo)
-                })
-
-                //pioneer info
-                messages.push({
-                    role:"system",
-                    content:" Users Pioneer Info: "+JSON.stringify(userInfoPioneer)
-                })
-                //get recent txs
-
-                //
-
-                prompt = prompt + "session context: "+sessionInfo.toString()
-
-                //session
-                for(let i = 0; i < sessionInfo.length; i++){
-                    let messageInfo = sessionInfo[i]
-                    log.info(tag,"messageInfo: ",messageInfo)
-                    if(messageInfo.username && messageInfo.output && messageInfo.output.sentences){
-                        log.info(tag," I think the session is valid! ")
-                        log.info(tag,"messageInfo.username: ",messageInfo.username)
-                        log.info(tag,"messageInfo.output: ",messageInfo.output)
-                        messages.push({
-                            role:"user",
-                            content: messageInfo.text
-                        })
-                        prompt = prompt + messageInfo.username + " said: " + messageInfo.text + ". "
-                        messages.push({
-                            role:"assistant",
-                            content: messageInfo.output.sentences.toString()
-                        })
-                        prompt = prompt + "pioneer replied: " + messageInfo.output.sentences.toString() + ". "
-                    } else {
-                        log.error(tag,"invalid messageInfo: ",messageInfo)
-                    }
+                let WORKER_ID = 'pioneer-task-queue'
+                let work = {
+                    username,
+                    discordName:data.discordName,
+                    userInfo,
+                    sessionId,
+                    channel:data.channel,
+                    sessionInfo,
+                    userInfoPioneer,
+                    text:data.text,
                 }
-                messages.push({ role: 'user', content:  data.text })
-                let body
-                let response
-                if(USE_GPT_4){
-                    //get openApi response
-                    console.log("messages: ",messages)
-                    body = {
-                        model: "gpt-4",
-                        messages,
-                    }
-                    response = await openai.createChatCompletion(body);
-                    console.log("response: ",response.data.choices[0].message)
-                    // console.log("response: ",response.data.choices[0].message.content)
-                    output.sentences.push(response.data.choices[0].message.content)
-                    // for(let i = 0; i < response.data.choices; i++){
-                    //     console.log("response: ",response.data.choices[i].message)
-                    //     output.sentences.push(response.data.choices[i].message.content)
-                    // }
+                queue.createWork("bots:"+WORKER_ID+":ingest",work)
 
-                }
-
-                if(!USE_GPT_4){
-                    prompt = JSON.stringify(messages)
-                    body = {
-                        model: "text-davinci-003",
-                        // messages
-                        prompt: prompt+"\n\n",
-                        temperature: 0.7,
-                        max_tokens: 2756,
-                        top_p: 1,
-                        frequency_penalty: 0,
-                        presence_penalty: 0,
-                    }
-                    response = await openai.createCompletion(body);
-                    //summarize response
-
-                    //score response
-                    //
-                    // console.log("response: ",response)
-                    console.log("response: ",response.data)
-                    // console.log("response: ",response.data.choices)
-                    // console.log("response: ",response.data.choices[0])
-                    if(response.data.choices[0].text.length > 2000){
-                        //summarize
-
-                    } else {
-                        output.sentences = response.data.choices[0].text
-                    }
-                }
-
-                if(!output.sentences) output.sentences = "end"
             }
-            data.output = output
-            //save session
-            conversations.insert(data)
         }
         log.info(tag,"output: ",output)
         return output
@@ -406,14 +329,48 @@ let do_work = async function(){
             if(!work.queueId) throw Error("100: invalid work! missing queueId")
             if(!work.username) throw Error("102: invalid work! missing username")
             if(!work.text) throw Error("103: invalid work! missing text")
+            if(!work.channel) throw Error("103: invalid work! missing channel")
+            // if(!work.discordId) throw Error("103: invalid work! missing discordId")
+            if(!work.discordName) throw Error("103: invalid work! missing discordName")
 
             //receive
             let timeReceive = new Date().getTime()
 
-            //parse tokens
-            let session = 'discord'
-            let response = await deliberate_on_input(session,work,work.username)
-            log.info(tag,"response: ",response)
+            //paywall
+            let discordInfo = await redis.hgetall(work.discordName)
+            log.info(tag,"discordInfo: ",discordInfo)
+
+            //check if discord has credits
+            let approved = false
+            //141052729069010944 coinmaster main
+            if(work.discordName == 'CoinMasters Guild'){
+                //whitelist
+                approved = true
+            } else {
+                //debit
+
+                //if success debit
+                //approved = true
+                //if failed to debit
+                redis.lpush(work.queueId,JSON.stringify({
+                    views:[],
+                    sentences:["You must fund your account to continue"],
+                }))
+            }
+
+            if(approved){
+                //parse tokens
+                let session = 'discord'
+                let response = await deliberate_on_input(session,work,work.username)
+                log.info(tag,"response: ",response)
+                //release
+                let timeRelease = new Date().getTime()
+                let duration = timeRelease - timeReceive
+
+                redis.lpush(work.queueId,JSON.stringify(response))
+            }
+
+
 
             //get response to each sentince
             // let response = await rive.respond(work.text)
@@ -428,13 +385,9 @@ let do_work = async function(){
 
             //if CMD
 
-            //release
-            let timeRelease = new Date().getTime()
-            let duration = timeRelease - timeReceive
 
-            redis.lpush(work.queueId,JSON.stringify(response))
         } else {
-            log.info(tag,"queue empty!")
+            log.debug(tag,"queue empty!")
         }
 
     } catch(e) {
