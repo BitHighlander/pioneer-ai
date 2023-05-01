@@ -27,6 +27,7 @@ declare let conversations: any;
 declare const knowledgeDB: any;
 declare const rivescriptDB: any;
 declare const skillsDB: any;
+declare const credentialsDB: any;
 declare let fs: any;
 interface Data {
     query: string;
@@ -64,5 +65,6 @@ declare const save_skill: (skill: Skill) => Promise<{
     description: string;
     keywords: string[];
 }>;
-declare const build_a_script: (output: string) => Promise<any>;
+declare const build_a_script: (output: string, context: string) => Promise<any>;
+declare let validate_gpt_json_output: (output: string, e: any) => Promise<any>;
 declare let do_work: () => Promise<void>;

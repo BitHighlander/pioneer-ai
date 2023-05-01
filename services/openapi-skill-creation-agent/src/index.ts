@@ -54,6 +54,7 @@ let conversations = connection.get("conversations");
 const knowledgeDB = connection.get('knowledge')
 const rivescriptDB = connection.get('rivescriptRaw')
 const skillsDB = connection.get('skills')
+const credentialsDB = connection.get('credentials')
 let fs = require('fs')
 
 
@@ -121,7 +122,8 @@ const save_skill = async function(skill:Skill){
     Build a script
  */
 
-const build_a_script = async function(output:string){
+const build_a_script = async function(output:string, context:string){
+    let tag = TAG+" | build_a_script | "
     try{
         log.info("build_a_script checkpoint : ",output)
 
@@ -132,21 +134,31 @@ const build_a_script = async function(output:string){
             },
             {
                 role:"system",
-                content:"you always output in the following format {script:string,inputs:any,outputs:any,summary:string,keywords:string[]}"
+                content:"you always output in the following format {script:string,inputsCount:number, inputs:[{position:number,name:string,description:string,example:string}],outputs:any, outputMap:{verbal descript of each field and what data in there},summary:string,keywords:string[]}"
             },
             {
                 role:"system",
-                content:" you never attach any extra characters or words. you never say result:  Here's a bash script that... you only output the json outputs, you review the script to verify it will parse to json closely. if needed you will escape ticks in the bash script to make sure it parses json via JSON.parse correctly. you never forget to put a shabam at the top of the bash script. or words around the output. it is pure stringified json. the script field of the output must be a stringified version of a bash script. of there are any install commands needed you must add them inside the bash script."
+                content:" you never attach any extra characters or words. you never say result:  Here's a bash script that... you only output the json outputs, you review the script to verify it will parse to json closely. if needed you will escape ticks in the bash script to make sure it parses json via JSON.parse correctly. you never forget to put a shabam at the top of the bash script. or words around the output. it is pure stringifies json. the script field of the output must be a stringifies version of a bash script. of there are any install commands needed you must add them inside the bash script."
             },
             {
                 role:"system",
                 content:"Bash Scripts are always written for MacOS"
             },
             {
+                role:"system",
+                content:" you always double check that the ouput script is valid and will parse. you prevent errors like  Unexpected token $ in JSON at position 39 by escaping the ticks in the bash script. you always double check that the ouput script is valid and will parse. you prevent errors like  Unexpected token $ in JSON at positions by escaping the ticks in the bash script."
+            },
+            {
                 role:"user",
-                content:output
+                content:"context info: "+context
+            },
+            {
+                role:"user",
+                content:"user requests you: "+output
             }
         ]
+
+        //log.info(tag,"messages: ",messages)
         //
         let body = {
             model: "gpt-4",
@@ -165,6 +177,40 @@ const build_a_script = async function(output:string){
 
 
 //test
+let validate_gpt_json_output = async function(output:string, e:any){
+    let tag = TAG+ " | validate_gpt_json_output | "
+    try{
+        let messages = [
+            {
+                role:"system",
+                content:"You are a cleanup bot. you take the output of a gpt-4 chatbot and clean it up. you remove all the system messages. you remove all the user messages. you remove all the content that is not a JSON response. you evaluate all fields of the JSON to verify it will parse with JSON. stringify without error. you never change any content"
+            },
+            {
+                role:"system",
+                content:"you always output in the following format {script:string,inputsCount:number, inputs:[{position:number,name:string,description:string,example:string}],outputs:any, outputMap:{verbal descript of each field and what data in there},summary:string,keywords:string[]}"
+            },
+            {
+                role:"user",
+                content:"the error was e: "+e.toString()
+            },
+            {
+                role:"user",
+                content:output
+            }
+        ]
+
+        //log.info(tag,"messages: ",messages)
+        //
+        let body = {
+            model: "gpt-4",
+            messages,
+        }
+        let response = await openai.createChatCompletion(body);
+        return response.data.choices[0].message.content
+    }catch(e){
+        console.error(e)
+    }
+}
 
 //save
 
@@ -185,17 +231,69 @@ let do_work = async function(){
             if(!work.username) throw Error("102: invalid work! missing username")
             if(!work.channel) throw Error("103: invalid work! missing channel")
 
-            //build scripts from inputted code examples
-            let result = await build_a_script(work.work)
-            log.info("result: ",result)
+            //TODO get keywords from work
 
-            //verify output is json
-            let resultFormated = JSON.parse(result)
-            //verify json is correct format
-            // if(!resultFormated.inputs) throw Error("Invalid output! missing inputs")
-            if(!resultFormated.script) throw Error("Invalid output! missing script")
-            if(!resultFormated.summary) throw Error("Invalid output! missing summary")
-            if(!resultFormated.keywords) throw Error("Invalid output! missing keywords")
+            //TODO get context from work
+
+            //TODO get related skills
+
+            //TODO get previous attempts
+
+            let context = {
+                API_KEY:process.env["GOOGLE_SEARCH_API_KEY"],
+                OPENAI_API_KEY_4:process.env["OPENAI_API_KEY_4"],
+            }
+            let contextString = JSON.stringify(context)
+            if(typeof(work.work) !== "string") work.work = JSON.stringify(work.work)
+            //build scripts from inputted code examples
+            let result = await build_a_script(work.work, contextString)
+            log.info("result: ",result)
+            let resultFormated:any
+            try{
+                //verify output is json
+                resultFormated = JSON.parse(result)
+                //verify json is correct format
+                // if(!resultFormated.inputs) throw Error("Invalid output! missing inputs")
+                if(!resultFormated.script) throw Error("Invalid output! missing script")
+                if(!resultFormated.summary) throw Error("Invalid output! missing summary")
+                if(!resultFormated.keywords) throw Error("Invalid output! missing keywords")
+                if(!resultFormated.inputs) throw Error("Invalid output! missing keywords")
+                if(!resultFormated.inputsCount) throw Error("Invalid output! missing inputsCount")
+
+                for(let i = 0; resultFormated.inputs < i; i++){
+                    if(!resultFormated.inputs[i].position) throw Error("Invalid inputs! input:"+i+" is missing position")
+                    if(!resultFormated.inputs[i].name) throw Error("Invalid inputs! input:"+i+" missing name")
+                    if(!resultFormated.inputs[i].description) throw Error("Invalid inputs! input:"+i+" missing description")
+                    if(!resultFormated.inputs[i].example) throw Error("Invalid inputs! input:"+i+" missing example")
+                }
+
+            }catch(e){
+
+                resultFormated = await validate_gpt_json_output(result, e)
+                try{
+                    resultFormated = JSON.parse(result)
+
+                    // if(!resultFormated.inputs) throw Error("Invalid output! missing inputs")
+                    if(!resultFormated.script) throw Error("Invalid output! missing script")
+                    if(!resultFormated.summary) throw Error("Invalid output! missing summary")
+                    if(!resultFormated.keywords) throw Error("Invalid output! missing keywords")
+                    if(!resultFormated.inputs) throw Error("Invalid output! missing keywords")
+                    if(!resultFormated.inputsCount) throw Error("Invalid output! missing inputsCount")
+
+                    for(let i = 0; resultFormated.inputs < i; i++){
+                        if(!resultFormated.inputs[i].position) throw Error("Invalid inputs! input:"+i+" is missing position")
+                        if(!resultFormated.inputs[i].name) throw Error("Invalid inputs! input:"+i+" missing name")
+                        if(!resultFormated.inputs[i].description) throw Error("Invalid inputs! input:"+i+" missing description")
+                        if(!resultFormated.inputs[i].example) throw Error("Invalid inputs! input:"+i+" missing example")
+                    }
+
+                }catch(e){
+                    log.error("Abort! GPT sucks and wont give valid json response! aborting work: ",work)
+                    throw e
+                }
+            }
+
+
 
 
             //save skill
@@ -203,20 +301,20 @@ let do_work = async function(){
             log.info(tag,"saveSuccess: ",saveSuccess)
             if(!saveSuccess.skillId) throw Error("Failed to save Skill!")
             //submit skill to execution engine
-            let WORKER_NAME = 'pioneer-exec-v1'
-            let workExe = {
-                username:work.username,
-                discord:work.discord,
-                discordId:work.discordId,
-                channel:work.channel,
-                userInfo:work.userInfo,
-                sessionId:work.sessionId,
-                sessionInfo:work.sessionInfo,
-                userInfoPioneer:work.userInfoPioneer,
-                work:saveSuccess.skillId,
-                text:saveSuccess.skillId
-            }
-            queue.createWork("bots:"+WORKER_NAME+":ingest",workExe)
+            // let WORKER_NAME = 'pioneer-exec-v1'
+            // let workExe = {
+            //     username:work.username,
+            //     discord:work.discord,
+            //     discordId:work.discordId,
+            //     channel:work.channel,
+            //     userInfo:work.userInfo,
+            //     sessionId:work.sessionId,
+            //     sessionInfo:work.sessionInfo,
+            //     userInfoPioneer:work.userInfoPioneer,
+            //     work:saveSuccess.skillId,
+            //     text:saveSuccess.skillId
+            // }
+            // queue.createWork("bots:"+WORKER_NAME+":ingest",workExe)
             //verify results
 
             //is skill passes mark it

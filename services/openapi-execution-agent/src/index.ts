@@ -87,22 +87,29 @@ const help = () => {
 }
 
 
-let run_command = async function(skillId: string){
+let run_command = async function(skillId: string, inputs: any) {
     let tag = TAG + " | run_command | "
     try {
         //get script by id
         let command = await skillsDB.findOne({skillId})
         log.info(tag,"command: ",command)
-
+        if(!command) throw Error("missing command "+skillId)
 
         //write script to file
         let writeSuccess = fs.writeFileSync('./run.sh', command.script);
         log.info(tag, "writeSuccess: ", writeSuccess)
-
         //make sure file is executable
 
         let messages = []
         let cmd = "sh run.sh";
+
+        //for each input
+        for(let i=0;i<inputs.length;i++){
+            let input = inputs[i]
+            log.info(tag,"input: ",input)
+            cmd = cmd + " " + input
+        }
+        log.info(tag, "cmd: ", cmd)
         try {
             const TIMEOUT_MS = 60000; // 60 seconds
 
@@ -205,12 +212,14 @@ let do_work = async function(){
         work = await queue.getWork("bots:"+BOT_NAME+":ingest", 60)
         if(work){
             log.info("work: ",work)
-            if(!work.text) throw Error("100: invalid work! missing work")
+            if(!work.skillId) throw Error("100: invalid work! missing work")
+            if(!work.inputCount) throw Error("100: invalid work! missing inputCount")
+            if(!work.inputs) throw Error("100: invalid work! missing inputs")
             // if(!work.user) throw Error("101: invalid work! missing username")
             if(!work.username) throw Error("102: invalid work! missing username")
             if(!work.channel) throw Error("103: invalid work! missing channel")
 
-            let result = await run_command(work.text)
+            let result = await run_command(work.skillId, work.inputs)
             log.info("result: ",result)
 
             //summarize

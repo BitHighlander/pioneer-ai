@@ -49,9 +49,7 @@ const knowledgeDB = connection.get('knowledge')
 const skillsDB = connection.get('skills')
 const tasksDB = connection.get('tasks')
 let fs = require('fs')
-// let rive = require('@pioneer-platform/ccbot-rivescript-brain')
-// //onStart
-// rive.initialize()
+
 
 interface Data {
     query: string
@@ -142,7 +140,11 @@ const build_work = async function(data:any, summary:any){
         let messages = [
             {
                 role:"system",
-                content:"analyze the requested task, break it down into small steps for a process worker. each step should be specific and achievable with a single api request or script processing the data. You always are prepaired for changes in the returned data and never assume you know how data will be formed, you create scripts that review returned data and find what you are looking for and confirm its correct. return a json object with the struct { summary: string, finalGoal: string, steps: steps: steps:[] }"
+                content:"analyze the requested task, break it down into small steps for a process worker. each step should be specific and achievable with a single api request or script processing the data. You always are prepaired for changes in the returned data and never assume you know how data will be formed, you create scripts that review returned data and find what you are looking for and confirm its correct."
+            },
+            {
+                role:"system",
+                content:"The output will go to JSON.stringify, verify the output is valid and parseable. never add ..., never cuttoff entries. return a json object with the struct { summary: string, finalGoal: string, steps: steps: steps:[{ type:string, input: string, action:string  }] }"
             },
             {
                 role:"user",
@@ -192,12 +194,13 @@ const deliberate_on_input = async function(session:any,data:Data,username:string
 
         let workResp = await build_work(data, summary)
         log.info(tag,"workResp: ",workResp)
-
+        // create taskId
+        let taskId = short.shortUUID()
         //checkpoint display to discord
         let view = {
             type:"task",
             data:workResp,
-            message:"test"
+            message:taskId
         }
         //push to discord
         if(!data.channel) throw Error("Missing Channel")
@@ -212,8 +215,12 @@ const deliberate_on_input = async function(session:any,data:Data,username:string
         let resultPublish = await publisher.publish('discord-bridge',JSON.stringify(message))
         log.info("resultPublish: ",resultPublish)
 
-        // create taskId
-        let taskId = short()
+        //for each task
+        for(let i = 0; i < workResp.steps.length; i++){
+            workResp.steps[i].taskId = taskId
+            workResp.steps[i].complete = false
+        }
+
         let task = {
             taskId,
             owner:data.username,
@@ -224,33 +231,7 @@ const deliberate_on_input = async function(session:any,data:Data,username:string
             priority:10
         }
         tasksDB.insert(task)
-        // for each step
-        for(let i = 0; i < workResp.steps.length; i++){
-            let step = workResp.steps[i]
 
-            // TODO search for related skills
-
-            // TODO perform skill
-
-            // TODO verify step has been completed
-
-            //assume no skill exists, create for step
-            let WORKER_NAME = 'pioneer-skills-creator'
-            let work = {
-                username:data.username,
-                discord:data.discordName,
-                discordId:data.discordId,
-                channel:data.channel,
-                userInfo:data.userInfo,
-                sessionId:data.sessionId,
-                sessionInfo:data.sessionInfo,
-                userInfoPioneer:data.userInfoPioneer,
-                work:"create a skill that "+step,
-            }
-            queue.createWork("bots:"+WORKER_NAME+":ingest",work)
-
-
-        }
 
 
 

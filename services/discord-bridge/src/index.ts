@@ -164,7 +164,7 @@ const create_view = async function(view:any,message:any,data:any){
                 // code block
                 const embed = new EmbedBuilder()
                     .setColor('#0099ff')
-                    .setTitle(data.summary)
+                    .setTitle(data.message+ ":" +data.summary)
                     .setDescription(data.finalGoal)
                     .addFields(
                         allFields
