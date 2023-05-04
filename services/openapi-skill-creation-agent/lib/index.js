@@ -331,7 +331,7 @@ var do_work = function () {
                         }
                     }
                     catch (e) {
-                        log.error("Abort! GPT sucks and wont give valid json reponse! abroting work: ", work);
+                        log.error("Abort! GPT sucks and wont give valid json response! aborting work: ", work);
                         throw e;
                     }
                     return [3 /*break*/, 8];
@@ -341,6 +341,8 @@ var do_work = function () {
                     log.info(tag, "saveSuccess: ", saveSuccess);
                     if (!saveSuccess.skillId)
                         throw Error("Failed to save Skill!");
+                    //release
+                    redis.lpush(work.workId, JSON.stringify({ success: true, skillId: saveSuccess.skillId }));
                     return [3 /*break*/, 11];
                 case 10:
                     log.debug(tag, "queue empty!");

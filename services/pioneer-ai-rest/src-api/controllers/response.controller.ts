@@ -38,9 +38,6 @@ export class ResponseController extends Controller {
     /*
      * response
      *
-     *
-     *
-     *
      * */
     @Post('/response')
     public async generateResponse(@Body() body: any): Promise<any> {

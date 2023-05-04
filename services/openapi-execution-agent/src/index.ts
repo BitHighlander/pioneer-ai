@@ -53,6 +53,7 @@ let conversations = connection.get("conversations");
 const knowledgeDB = connection.get('knowledge')
 const rivescriptDB = connection.get('rivescriptRaw')
 const skillsDB = connection.get('skills')
+const tasksDB = connection.get('tasks')
 let fs = require('fs')
 
 interface Data {
@@ -107,7 +108,7 @@ let run_command = async function(skillId: string, inputs: any) {
         for(let i=0;i<inputs.length;i++){
             let input = inputs[i]
             log.info(tag,"input: ",input)
-            cmd = cmd + " " + input
+            cmd = cmd + ' "' + input+'"'
         }
         log.info(tag, "cmd: ", cmd)
         try {
@@ -213,6 +214,7 @@ let do_work = async function(){
         if(work){
             log.info("work: ",work)
             if(!work.skillId) throw Error("100: invalid work! missing work")
+            if(!work.taskId) throw Error("100: invalid work! missing taskId")
             if(!work.inputCount) throw Error("100: invalid work! missing inputCount")
             if(!work.inputs) throw Error("100: invalid work! missing inputs")
             // if(!work.user) throw Error("101: invalid work! missing username")
@@ -222,18 +224,27 @@ let do_work = async function(){
             let result = await run_command(work.skillId, work.inputs)
             log.info("result: ",result)
 
-            //summarize
-            let summary = await summarize_cli_result(JSON.stringify(result))
-            log.info("summary: ",summary)
-            if(typeof(summary) === "string") summary = JSON.parse(summary)
+            // //summarize
+            // let summary = await summarize_cli_result(JSON.stringify(result))
+            // log.info("summary: ",summary)
+            // if(typeof(summary) === "string") summary = JSON.parse(summary)
+
+            //save result to taskId
+            let resultsSave = await tasksDB.update({taskId:work.taskId},{$set:{result}})
+            log.info("resultsSave: ",resultsSave)
+
+            //release
+            redis.lpush(work.workId,JSON.stringify({success:true,result}))
+
+
 
             //push to discord
-            let message = {
-                channel:work.channel,
-                message:summary.output
-            }
-            let resultPublish = await publisher.publish('discord-bridge',JSON.stringify(message))
-            log.info("resultPublish: ",resultPublish)
+            // let message = {
+            //     channel:work.channel,
+            //     message:summary.output
+            // }
+            // let resultPublish = await publisher.publish('discord-bridge',JSON.stringify(message))
+            // log.info("resultPublish: ",resultPublish)
         } else {
             log.debug(tag,"queue empty!")
         }

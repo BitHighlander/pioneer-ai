@@ -221,7 +221,6 @@ const deliberate_on_input = async function(session:any,data:Data,username:string
             }
 
 
-
             for (let i = 0; i < output.sentences.length; i++) {
                 log.debug(tag,"output: ",output[i])
                 //if contains a CMD: assume command
@@ -330,7 +329,7 @@ let do_work = async function(){
             if(!work.username) throw Error("102: invalid work! missing username")
             if(!work.text) throw Error("103: invalid work! missing text")
             if(!work.channel) throw Error("103: invalid work! missing channel")
-            // if(!work.discordId) throw Error("103: invalid work! missing discordId")
+            //if(!work.discordId) throw Error("103: invalid work! missing discordId")
             if(!work.discordName) throw Error("103: invalid work! missing discordName")
 
             //receive

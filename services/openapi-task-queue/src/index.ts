@@ -144,7 +144,7 @@ const build_work = async function(data:any, summary:any){
             },
             {
                 role:"system",
-                content:"The output will go to JSON.stringify, verify the output is valid and parseable. never add ..., never cuttoff entries. return a json object with the struct { summary: string, finalGoal: string, steps: steps: steps:[{ type:string, input: string, action:string  }] }"
+                content:"The output will go to JSON.stringify, verify the output is valid and parseable. never add ..., never cuttoff entries. return a json object with the struct { summary: string, keywords:string[] finalGoal: string, steps: steps: steps:[{ type:string, input: string, action:string  }] }"
             },
             {
                 role:"user",
@@ -195,7 +195,7 @@ const deliberate_on_input = async function(session:any,data:Data,username:string
         let workResp = await build_work(data, summary)
         log.info(tag,"workResp: ",workResp)
         // create taskId
-        let taskId = short.shortUUID()
+        let taskId = short.generate()
         //checkpoint display to discord
         let view = {
             type:"task",
@@ -224,14 +224,15 @@ const deliberate_on_input = async function(session:any,data:Data,username:string
         let task = {
             taskId,
             owner:data.username,
+            keywords:summary.keywords,
             summary:workResp.summary,
             finalGoal:workResp.finalGoal,
             steps:workResp.steps,
             complete:false,
             priority:10
         }
-        tasksDB.insert(task)
-
+        let savedTask = await tasksDB.insert(task)
+        log.info(tag,"savedTask: ",savedTask)
 
 
 

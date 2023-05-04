@@ -300,6 +300,11 @@ let do_work = async function(){
             let saveSuccess = await save_skill(resultFormated)
             log.info(tag,"saveSuccess: ",saveSuccess)
             if(!saveSuccess.skillId) throw Error("Failed to save Skill!")
+
+            //release
+            redis.lpush(work.workId,JSON.stringify({success:true,skillId:saveSuccess.skillId}))
+
+
             //submit skill to execution engine
             // let WORKER_NAME = 'pioneer-exec-v1'
             // let workExe = {
