@@ -93,7 +93,7 @@ let build_solution = async function(result:any, task:any){
         let messages = [
             {
                 role:"system",
-                content:"You are a solver bot. You review a task and result and determine if the solution is in the data provided. if it is you create the solution, solutions summarize the result from the data given, you do not ever try to solve it yourself! only use given data that is known to be relevant. ."
+                content:"You are a solutions bot. you create the solution by using the data to create the solution. solutions use the data provided intelligently and solve the task! "
             },
             {
                 role:"system",
@@ -101,7 +101,7 @@ let build_solution = async function(result:any, task:any){
             },
             {
                 role:"user",
-                content:"result of the skill is: "+JSON.stringify(result)+" and the task im trying to solve is "+JSON.stringify(result)+" build a set of inputs that will solve this task"
+                content:"result of the skill is: "+JSON.stringify(result)+" and the task im trying to solve is "+JSON.stringify(task)
             }
         ]
 
@@ -122,7 +122,23 @@ let build_solution = async function(result:any, task:any){
 /***********************************************
  //        lib
  //***********************************************/
-
+let push_sentence = async function(sentence:string,channel:any){
+    let tag = TAG+ " | push_sentence | "
+    try{
+        //send to discord
+        let payload = {
+            channel,
+            responses:{
+                sentences:[sentence],
+                views:[]
+            }
+        }
+        publisher.publish('discord-bridge',JSON.stringify(payload))
+        return true
+    }catch(e){
+        console.error(e)
+    }
+}
 
 let do_work = async function(){
     let tag = TAG+" | do_work | "
@@ -145,7 +161,7 @@ let do_work = async function(){
 
             //count chars in result
 
-            //if needed recursivly downsizes the input
+            //if needed recursively downsizes the input
 
             //ask bot if solved
 
@@ -155,10 +171,11 @@ let do_work = async function(){
             isSolved = JSON.parse(isSolved)
             if(isSolved.solved){
                 log.info(tag,"SOLVED WINNING!!!!!")
+                push_sentence("Solution: "+isSolved.solution,work.channel)
                 //update mongo!
-                let update = await skillsDB.update({taskId:work.task.taskId},{$set:{solution:isSolved}},{upsert:true})
+                let update = await skillsDB.update({taskId:work.taskId},{$set:{solution:isSolved}})
                 log.info(tag,"update: ",update)
-                let update2 = await skillsDB.update({taskId:work.task.taskId},{$set:{complete:true}})
+                let update2 = await skillsDB.update({taskId:work.taskId},{$set:{complete:true}})
                 log.info(tag,"update2: ",update2)
             }
 

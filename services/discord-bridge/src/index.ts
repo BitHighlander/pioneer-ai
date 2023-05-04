@@ -201,34 +201,44 @@ subscriber.on('message', async function (channel:string, payloadS:string) {
 
         // Find the channel you want to send the message to
         const channelObj = bot.channels.cache.get(payload.channel);
-
-        if(payload.responses.sentences && payload.responses.sentences.length > 0){
-            // Send the message to the channel
-            channelObj.send(payload.message)
-                .then(() => {
-                    log.info(`Message sent to channel ${channelObj.name}: ${payload.message}`);
-                })
-                .catch(console.error);
-        }
-
-        //views
-        if(payload.responses.views && payload.responses.views.length > 0){
-            for(let i = 0; i < payload.responses.views.length; i++){
-                let view = payload.responses.views[i]
-                log.info(tag,"view: ",view)
-
-                let output = await create_view(view,view.message,view.data)
-                log.info(tag,"output: ",output)
-
-                if(output.embeds.length > 0){
-                    channelObj.send(output)
-                        .then(() => {
-                            log.info(`Message sent to channel ${channelObj.name}: `,output);
-                        })
-                        .catch(console.error);
-                }
+        if(channelObj){
+            if(payload.responses.sentences && payload.responses.sentences.length > 0){
+                // Send the message to the channel
+                let message = payload.responses.sentences.toString()
+                log.info(tag,"message: ",message)
+                channelObj.send(message || "empty")
+                    .then(() => {
+                        log.info(`Message sent to channel ${channelObj.name}: ${payload.message}`);
+                    })
+                    .catch(console.error);
+            } else {
+                log.info(tag,"No sentences to send!")
             }
+
+            //views
+            if(payload.responses.views && payload.responses.views.length > 0){
+                for(let i = 0; i < payload.responses.views.length; i++){
+                    let view = payload.responses.views[i]
+                    log.info(tag,"view: ",view)
+
+                    let output = await create_view(view,view.message,view.data)
+                    log.info(tag,"output: ",output)
+
+                    if(output.embeds.length > 0){
+                        channelObj.send(output)
+                            .then(() => {
+                                log.info(`Message sent to channel ${channelObj.name}: `,output);
+                            })
+                            .catch(console.error);
+                    }
+                }
+            } else {
+                log.info(tag,"No views to send!")
+            }
+        } else {
+            log.info(tag,"channel not found!")
         }
+
 
     } catch (e) {
         log.error(tag, e);

@@ -218,7 +218,7 @@ let do_work = async function(){
             if(!work.inputCount) throw Error("100: invalid work! missing inputCount")
             if(!work.inputs) throw Error("100: invalid work! missing inputs")
             // if(!work.user) throw Error("101: invalid work! missing username")
-            if(!work.username) throw Error("102: invalid work! missing username")
+            // if(!work.username) throw Error("102: invalid work! missing username")
             if(!work.channel) throw Error("103: invalid work! missing channel")
 
             let result = await run_command(work.skillId, work.inputs)

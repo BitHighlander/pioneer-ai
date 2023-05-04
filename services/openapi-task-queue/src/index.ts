@@ -172,6 +172,35 @@ const build_work = async function(data:any, summary:any){
     }
 }
 
+//test
+let build_solution = async function(task:any){
+    let tag = TAG+ " | build_solution | "
+    try{
+        let messages = [
+            {
+                role:"system",
+                content:"You are a solver bot. You review a task and solve it"
+            },
+            {
+                role:"user",
+                content:"the task im trying to solve is "+JSON.stringify(task)
+            }
+        ]
+
+        //log.info(tag,"messages: ",messages)
+        //
+        let body = {
+            model: "gpt-4",
+            messages,
+        }
+        let response = await openai.createChatCompletion(body);
+        return response.data.choices[0].message.content
+    }catch(e){
+        console.error(e)
+    }
+}
+
+
 const deliberate_on_input = async function(session:any,data:Data,username:string){
     const tag = " | deliberate_on_input | "
     try{
@@ -191,78 +220,89 @@ const deliberate_on_input = async function(session:any,data:Data,username:string
         //Summarize
         let summary = await build_summary(data.text, data.sessionInfo)
         log.info(tag,"summary: ",summary)
-
-        let workResp = await build_work(data, summary)
-        log.info(tag,"workResp: ",workResp)
-        // create taskId
-        let taskId = short.generate()
-        //checkpoint display to discord
-        let view = {
-            type:"task",
-            data:workResp,
-            message:taskId
-        }
-        //push to discord
-        if(!data.channel) throw Error("Missing Channel")
         let message = {
             channel:data.channel,
             responses:{
-                views:[view],
-                sentences:[]
+                views:[],
+                sentences:["summary: "+summary.summary]
             }
         }
         log.info("message: ",message)
         let resultPublish = await publisher.publish('discord-bridge',JSON.stringify(message))
         log.info("resultPublish: ",resultPublish)
 
-        //for each task
-        for(let i = 0; i < workResp.steps.length; i++){
-            workResp.steps[i].taskId = taskId
-            workResp.steps[i].complete = false
+
+        if(summary.needsExternal){
+            log.info(tag,"summary: ",summary)
+            let messageNeedsExternal = {
+                channel:data.channel,
+                responses:{
+                    views:[],
+                    sentences:["needsExternal: "+summary.needsExternal]
+                }
+            }
+            await publisher.publish('discord-bridge',JSON.stringify(messageNeedsExternal))
+
+
+            let workResp = await build_work(data, summary)
+            log.info(tag,"workResp: ",workResp)
+            // create taskId
+            let taskId = short.generate()
+            //checkpoint display to discord
+            let view = {
+                type:"task",
+                data:workResp,
+                message:taskId
+            }
+            //push to discord
+            if(!data.channel) throw Error("Missing Channel")
+            let message = {
+                channel:data.channel,
+                responses:{
+                    views:[view],
+                    sentences:[]
+                }
+            }
+            log.info("message: ",message)
+            let resultPublish = await publisher.publish('discord-bridge',JSON.stringify(message))
+            log.info("resultPublish: ",resultPublish)
+
+            //for each task
+            for(let i = 0; i < workResp.steps.length; i++){
+                workResp.steps[i].taskId = taskId
+                workResp.steps[i].complete = false
+            }
+            summary.keywords.push('search')
+            let task = {
+                taskId,
+                discordId:data.discordId,
+                sessionId:data.sessionId,
+                channel:data.channel,
+                owner:data.username,
+                keywords:summary.keywords,
+                summary:workResp.summary,
+                finalGoal:workResp.finalGoal,
+                steps:workResp.steps,
+                complete:false,
+                priority:10
+            }
+            let savedTask = await tasksDB.insert(task)
+            log.info(tag,"savedTask: ",savedTask)
+        } else {
+            log.info("Does not need external data, solve it now")
+            let solution = await build_solution(data.text)
+            log.info(tag,"solution: ",solution)
+            //
+            let message = {
+                channel:data.channel,
+                responses:{
+                    views:[],
+                    sentences:[solution]
+                }
+            }
+            log.info("message: ",message)
+            let resultPublish = await publisher.publish('discord-bridge',JSON.stringify(message))
         }
-
-        let task = {
-            taskId,
-            owner:data.username,
-            keywords:summary.keywords,
-            summary:workResp.summary,
-            finalGoal:workResp.finalGoal,
-            steps:workResp.steps,
-            complete:false,
-            priority:10
-        }
-        let savedTask = await tasksDB.insert(task)
-        log.info(tag,"savedTask: ",savedTask)
-
-
-
-        //need real time data?
-        // if(summary.needsExternal){
-        //     //find scripts related to topics
-        //     let relatedScripts = await skillsDB.find({keywords:{$in:summary.keywords}})
-        //     log.info(tag,"relatedScripts: ",relatedScripts)
-        //
-        //     //if no scripts found, create step by step guide
-        //     if(!relatedScripts || relatedScripts.length === 0){
-        //         log.info(tag,"no related scripts found, creating step by step guide")
-        //         let workResp = await build_work(data, summary)
-        //         log.info(tag,"workResp: ",workResp)
-        //         log.info(tag,"workResp: ",JSON.stringify(workResp))
-        //
-        //         //add to work queue
-        //         // let BOT_NAME = 'pioneer-worker-v1'
-        //         // let work = {
-        //         //     username:data.username,
-        //         //     discord:data.discordName,
-        //         //     channel:data.channel,
-        //         //     sessionId:data.sessionId,
-        //         //     sessionInfo:data.sessionInfo,
-        //         //     work:workResp,
-        //         // }
-        //         // queue.createWork("bots:"+BOT_NAME+":ingest",work)
-        //     }
-        //
-        // }
 
     }catch(e){
         console.error(e)

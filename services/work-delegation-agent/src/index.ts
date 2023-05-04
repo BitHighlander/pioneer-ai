@@ -130,6 +130,83 @@ let build_solution = async function(inputs:any, task:string){
     }
 }
 
+//submit_solve_work
+let submit_solve_work = async function(task:any){
+    let tag = TAG+ " | submit_solve_work | "
+    try{
+        //if work is done attempt to execute
+        let BOT_NAME = 'pioneer-solver-v1'
+        let workExecute = {
+            workId:short.generate(),
+            taskId:task.taskId,
+            username:task.username || 'ukn',
+            discord:task.discord,
+            discordId:task.discordId,
+            channel:task.channel,
+            userInfo:{},
+            sessionId:task.sessionId,
+            sessionInfo:{},
+            userInfoPioneer:{},
+            inputCount:1,
+            task,
+            result:task.result
+        }
+
+        queue.createWork("bots:"+BOT_NAME+":ingest",workExecute)
+
+        let BLOCKING_TIMEOUT_INVOCATION_EXEC = 30000
+        let responseExec = await redisQueue.blpop(workExecute.workId,BLOCKING_TIMEOUT_INVOCATION_EXEC)
+        log.info(tag,"responseExec: ",responseExec)
+
+        let responseExecJson = JSON.parse(responseExec[1])
+        let solution = responseExecJson.solution
+        log.info(tag,"solution: ",solution)
+        return solution
+    }catch(e){
+        console.error(e)
+    }
+}
+
+//submit_exec_work
+let submit_exec_work = async function(){
+    let tag = TAG+ " | submit_exec_work | "
+    try{
+
+        return true
+    }catch(e){
+        console.error(e)
+    }
+}
+
+//submit_skill_work
+let submit_skill_work = async function(){
+    let tag = TAG+ " | submit_skill_work | "
+    try{
+
+        return true
+    }catch(e){
+        console.error(e)
+    }
+}
+
+let push_sentence = async function(sentence:string,channel:any){
+    let tag = TAG+ " | push_sentence | "
+    try{
+        //send to discord
+        let payload = {
+            channel,
+            responses:{
+                sentences:[sentence],
+                views:[]
+            }
+        }
+        publisher.publish('discord-bridge',JSON.stringify(payload))
+        return true
+    }catch(e){
+        console.error(e)
+    }
+}
+
 let do_work = async function(){
     let tag = TAG+" | do_work | "
     let work = {}
@@ -140,70 +217,29 @@ let do_work = async function(){
 
         //get all tasks from mongo
         let tasks = await tasksDB.find({complete:false})
-
-        log.info("tasks: ",tasks)
+        log.debug("tasks: ",tasks)
 
         //TODO iterate
         let task = tasks[0]
         if(task){
-            //Get next step in task, assign work
-            let taskAssigned = false
-
             //if task has result send to solver
             if(task.result){
-                log.info(tag,"Result was found! send to solver")
-                log.info(tag,"task.result: ",task.result)
-
-                //if work is done attempt to execute
-                let BOT_NAME = 'pioneer-solver-v1'
-                let workExecute = {
-                    workId:short.generate(),
-                    taskId:task.taskId,
-                    username:"test123",
-                    discord:"",
-                    discordId:"",
-                    channel:"234234232",
-                    userInfo:{},
-                    sessionId:"123123123",
-                    sessionInfo:{},
-                    userInfoPioneer:{},
-                    inputCount:1,
-                    task,
-                    result:task.result
-                }
-
-                queue.createWork("bots:"+BOT_NAME+":ingest",workExecute)
-
-                let BLOCKING_TIMEOUT_INVOCATION_EXEC = 30000
-                let responseExec = await redisQueue.blpop(workExecute.workId,BLOCKING_TIMEOUT_INVOCATION_EXEC)
-                log.info(tag,"responseExec: ",responseExec)
-
-                let responseExecJson = JSON.parse(responseExec[1])
-                responseExecJson = JSON.parse(responseExecJson)
-                let solution = responseExecJson.solution
-                log.info(tag,"solution: ",solution)
-
+                log.info(tag,"skill Result was found! attempt to solve")
                 //send to discord
-                let payload = {
-                    channel:"1090511307524034642",
-                    responses:{
-                        sentences:[solution],
-                        views:[]
-                    }
-                }
-                publisher.publish('discord-bridge',JSON.stringify(payload))
+                push_sentence('result found for task: '+task.taskId+" sending to solver.",task.channel)
+                let solution = await submit_solve_work(task)
+                push_sentence(solution,task.channel)
 
             } else {
-                log.info(tag,"Not solved!")
+                log.info(tag,"no skill performed! find a skill and perform")
+                //send to discord
+                push_sentence("no skill performed! finding a related skills",task.channel)
                 //if task has no result, attempt to solve
 
                 for(let i = 0; i < task.steps.length; i++){
-
                     let step = task.steps[i]
                     log.info(tag,"step: ",step)
-                    //TODO validate step
-
-                    //review task
+                    push_sentence('Step:  '+step.action+' status: '+step.complete,task.channel)
 
                     //search skills related to task
                     //find related skills
@@ -213,12 +249,20 @@ let do_work = async function(){
                         let results = await skillsDB.find({keywords:{$all:[keyword]}})
                         skillsRelated = skillsRelated.concat(...skillsRelated,results)
                     }
-                    log.info(tag,"skillsRelated: ",skillsRelated)
 
                     //attempt full task solution
                     let solutions:any = []
                     if(skillsRelated && skillsRelated.length > 0){
                         //gather inputs
+                        log.info(tag,"skillsRelated: ",skillsRelated)
+                        let payloadResultSkills = {
+                            channel:task.channel,
+                            responses:{
+                                sentences:['found related skills  '+skillsRelated.length],
+                                views:[]
+                            }
+                        }
+                        publisher.publish('discord-bridge',JSON.stringify(payloadResultSkills))
 
                         for(let i = 0; i < skillsRelated.length; i++){
                             let inputs = skillsRelated[i].inputs
@@ -239,19 +283,28 @@ let do_work = async function(){
                             log.info(tag,"solution4: ",solution)
                             log.info(tag,"solution5: ",solution.inputs)
                             //if work is done attempt to execute
+                            let payloadResultSkills = {
+                                channel:task.channel,
+                                responses:{
+                                    sentences:['Attempting to execute skill:  '+solution.skillid],
+                                    views:[]
+                                }
+                            }
+                            publisher.publish('discord-bridge',JSON.stringify(payloadResultSkills))
+
                             let BOT_NAME = 'pioneer-exec-v1'
                             let workExecute = {
                                 workId:short.generate(),
                                 taskId:task.taskId,
-                                username:"test123",
-                                discord:"",
-                                discordId:"",
-                                channel:"234234232",
+                                username:task.username || 'ukn',
+                                discord:task.discord,
+                                discordId:task.discordId,
+                                channel:task.channel,
                                 userInfo:{},
-                                sessionId:"123123123",
+                                sessionId:task.sessionId,
                                 sessionInfo:{},
                                 userInfoPioneer:{},
-                                inputCount:1,
+                                inputCount:solution.inputs.length,
                                 skillId:solution.skillid,
                                 inputs:solution.inputs,
                             }
@@ -262,6 +315,33 @@ let do_work = async function(){
                             let responseExec = await redisQueue.blpop(workExecute.workId,BLOCKING_TIMEOUT_INVOCATION_EXEC)
                             log.info(tag,"responseExec: ",responseExec)
 
+                            let skillOutput = JSON.parse(responseExec[1])
+                            log.info(tag,"skillOutput: ",skillOutput)
+
+                            //TODO update task with work done
+                            let taskUpdate = tasksDB.update({taskId:task.taskId},{$set:{result:skillOutput}})
+                            log.info(tag,"taskUpdate: ",taskUpdate)
+
+                            //TODO verify solution is attached to task in mongo
+
+                            let BOT_NAME_SOLVER = 'pioneer-solver-v1'
+                            let workExecuteSolver = {
+                                workId:short.generate(),
+                                taskId:task.taskId,
+                                username:task.username || 'ukn',
+                                discord:task.discord,
+                                discordId:task.discordId,
+                                channel:task.channel,
+                                userInfo:{},
+                                sessionId:task.sessionId,
+                                sessionInfo:{},
+                                userInfoPioneer:{},
+                                inputCount:1,
+                                task,
+                                result:skillOutput.result
+                            }
+                            queue.createWork("bots:"+BOT_NAME_SOLVER+":ingest",workExecuteSolver)
+
                         }
                         //
                     } else {
@@ -269,13 +349,14 @@ let do_work = async function(){
                         let WORKER_NAME = 'pioneer-skills-creator'
                         let workCreate = {
                             workId:short.generate(),
-                            username:"test123",
-                            discord:"",
-                            channel:"1090511307524034642",
+                            username:task.username || 'ukn',
+                            discord:task.discord ,
+                            channel:task.channel,
                             userInfo:{},
-                            sessionId:"123123123",
+                            sessionId:task.sessionId,
                             sessionInfo:{},
                             userInfoPioneer:{},
+                            inputsCount:1,
                             work:step
                         }
                         log.info(tag,"creating work!")
@@ -294,7 +375,7 @@ let do_work = async function(){
                         let skillInfo = await skillsDB.find({skillId:skillId})
                         log.info(tag,"skillInfo: ",skillInfo)
                     }
-                }
+                } // end steps
             }
         } else {
             log.info(tag,"No tasks found!")
