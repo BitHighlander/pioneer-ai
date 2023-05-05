@@ -54,6 +54,7 @@ let conversations = connection.get("conversations");
 const knowledgeDB = connection.get('knowledge')
 const rivescriptDB = connection.get('rivescriptRaw')
 const skillsDB = connection.get('skills')
+const tasksDB = connection.get('tasks')
 const credentialsDB = connection.get('credentials')
 let fs = require('fs')
 
@@ -118,6 +119,42 @@ let build_solution = async function(result:any, task:any){
     }
 }
 
+//verify output formated correct
+//test
+let validate_gpt_json_output = async function(output:string, e:any){
+    let tag = TAG+ " | validate_gpt_json_output | "
+    try{
+        let messages = [
+            {
+                role:"system",
+                content:"You are a cleanup bot. you take the output of a gpt-4 chatbot and clean it up. you remove all the system messages. you remove all the user messages. you remove all the content that is not a JSON response. you evaluate all fields of the JSON to verify it will parse with JSON. stringify without error. you never change any content"
+            },
+            {
+                role:"system",
+                content:'you always output in the following JSON stringifies format { "solution": string, "solved":boolean, "summary":string, "keywords":string[]}'
+            },
+            {
+                role:"user",
+                content:"the error was e: "+e.toString()
+            },
+            {
+                role:"user",
+                content:output
+            }
+        ]
+
+        //log.info(tag,"messages: ",messages)
+        //
+        let body = {
+            model: "gpt-4",
+            messages,
+        }
+        let response = await openai.createChatCompletion(body);
+        return response.data.choices[0].message.content
+    }catch(e){
+        console.error(e)
+    }
+}
 
 /***********************************************
  //        lib
@@ -152,13 +189,14 @@ let do_work = async function(){
         if(work){
             log.info("work: ",work)
             // if(!work.user) throw Error("101: invalid work! missing username")
+            if(!work.taskId) throw Error("102: invalid work! missing taskId")
             if(!work.username) throw Error("102: invalid work! missing username")
             if(!work.channel) throw Error("103: invalid work! missing channel")
             if(!work.task) throw Error("103: invalid work! missing taskId")
             if(!work.result) throw Error("103: invalid work! missing result")
 
             //TODO get keywords from work
-
+            log.info(tag,"work.taskId: ",work.taskId)
             //count chars in result
 
             //if needed recursively downsizes the input
@@ -168,14 +206,20 @@ let do_work = async function(){
             //if solved, summarize and return
             let isSolved = await build_solution(work.result,work.task)
             log.info(tag,"isSolved: ",isSolved)
-            isSolved = JSON.parse(isSolved)
+            try{
+                isSolved = JSON.parse(isSolved)
+            }catch(e){
+                isSolved = await validate_gpt_json_output(isSolved,e)
+                isSolved = JSON.parse(isSolved)
+            }
+
             if(isSolved.solved){
                 log.info(tag,"SOLVED WINNING!!!!!")
                 push_sentence("Solution: "+isSolved.solution,work.channel)
                 //update mongo!
-                let update = await skillsDB.update({taskId:work.taskId},{$set:{solution:isSolved}})
+                let update = await tasksDB.update({taskId:work.taskId},{$set:{solution:isSolved}})
                 log.info(tag,"update: ",update)
-                let update2 = await skillsDB.update({taskId:work.taskId},{$set:{complete:true}})
+                let update2 = await tasksDB.update({taskId:work.taskId},{$set:{complete:true}})
                 log.info(tag,"update2: ",update2)
             }
 

@@ -164,42 +164,6 @@ let run_command = async function(skillId: string, inputs: any) {
 }
 
 /*
-    analyze output
- */
-
-const summarize_cli_result = async function(output:string){
-    try{
-
-
-        let messages = [
-            {
-                role:"system",
-                content:"You are a cli processing bot. you process the data input filter out npm logs and return the output. this output is from bash output, and a node.js clis.  output will be json. and should be in a format {output:string}. you return a JSON string with the following fields {output:string,summary:string,success:boolean}. summary is a summary of all the npm logs and any critical errors"
-            },
-            {
-                role:"user",
-                content:output
-            },
-        ]
-        //
-        let body = {
-            model: "gpt-4",
-            messages,
-        }
-        let response = await openai.createChatCompletion(body);
-
-        // console.log("response: ",response.data)
-        console.log("response: ",response.data.choices[0])
-        console.log("response: ",response.data.choices[0].message.content)
-        return response.data.choices[0].message.content
-    }catch(e){
-        console.error(e)
-    }
-}
-
-
-
-/*
   do_work
  */
 let do_work = async function(){

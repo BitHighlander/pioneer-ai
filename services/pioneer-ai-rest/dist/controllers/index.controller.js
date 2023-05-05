@@ -123,9 +123,44 @@ var IndexController = /** @class */ (function (_super) {
             });
         });
     };
+    /*
+        Get user by address
+
+     */
+    IndexController.prototype.user = function (address) {
+        return __awaiter(this, void 0, void 0, function () {
+            var tag, status_2, e_2, errorResp;
+            return __generator(this, function (_a) {
+                switch (_a.label) {
+                    case 0:
+                        tag = TAG + " | user | ";
+                        _a.label = 1;
+                    case 1:
+                        _a.trys.push([1, 3, , 4]);
+                        return [4 /*yield*/, redis.hgetall("info:health")];
+                    case 2:
+                        status_2 = _a.sent();
+                        return [2 /*return*/, (true)];
+                    case 3:
+                        e_2 = _a.sent();
+                        errorResp = {
+                            success: false,
+                            tag: tag,
+                            e: e_2
+                        };
+                        log.error(tag, "e: ", { errorResp: errorResp });
+                        throw new ApiError("error", 503, "error: " + e_2.toString());
+                    case 4: return [2 /*return*/];
+                }
+            });
+        });
+    };
     __decorate([
         tsoa_1.Get('/health')
     ], IndexController.prototype, "health");
+    __decorate([
+        tsoa_1.Get('/user/address/{address}')
+    ], IndexController.prototype, "user");
     IndexController = __decorate([
         tsoa_1.Route('')
     ], IndexController);

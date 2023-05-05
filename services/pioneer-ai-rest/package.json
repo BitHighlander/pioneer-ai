@@ -2,11 +2,11 @@
   "name": "service-1",
   "version": "1.0.0",
   "scripts": {
-    "npm": "npm i",
     "build:web": "echo lol",
     "build:routes": "mkdir -p src-api/routes && tsoa routes --configuration tsoa.json",
     "build:swagger": "mkdir -p api && mkdir -p api/dist && tsoa swagger --configuration tsoa.json",
     "build:ts": "tsc -p src-api",
+    "build": "npm run build:all",
     "build:all": "npm run build:routes && npm run build:swagger && npm run build:ts && npm run build:web",
     "start": "node dist/main.js"
   },

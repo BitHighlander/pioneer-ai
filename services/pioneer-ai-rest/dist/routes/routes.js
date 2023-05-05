@@ -44,6 +44,23 @@ function RegisterRoutes(app) {
         promiseHandler(controller, promise, response, next);
     });
     // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+    app.get('/api/v1/user/address/:address', function (request, response, next) {
+        var args = {
+            address: { "in": "path", "name": "address", "required": true, "dataType": "string" }
+        };
+        // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
+        var validatedArgs = [];
+        try {
+            validatedArgs = getValidatedArgs(args, request, response);
+        }
+        catch (err) {
+            return next(err);
+        }
+        var controller = new index_controller_1.IndexController();
+        var promise = controller.user.apply(controller, validatedArgs);
+        promiseHandler(controller, promise, response, next);
+    });
+    // WARNING: This file was auto-generated with tsoa. Please do not modify it. Re-run tsoa to re-generate this file: https://github.com/lukeautry/tsoa
     app.post('/api/v1/response', function (request, response, next) {
         var args = {
             body: { "in": "body", "name": "body", "required": true, "dataType": "any" }

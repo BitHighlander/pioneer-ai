@@ -99,13 +99,13 @@ const help = () => {
 }
 
 //test
-let build_solution = async function(inputs:any, task:string){
-    let tag = TAG+ " | build_solution | "
+let find_inputs = async function(inputs:any, task:string){
+    let tag = TAG+ " | find_inputs | "
     try{
         let messages = [
             {
                 role:"system",
-                content:"You are a solutions bot. You review a task and provide a solution. the solution is a set of inputs into a executable script. inputs are an array of strings. the strings are the values passed to the exec."
+                content:"You are a input finder bot. You review a task and provide a solution. the solution is a set of inputs into a executable script. inputs are an array of strings. the strings are the values passed to the exec."
             },
             {
                 role:"system",
@@ -161,6 +161,12 @@ let submit_solve_work = async function(task:any){
         let responseExecJson = JSON.parse(responseExec[1])
         let solution = responseExecJson.solution
         log.info(tag,"solution: ",solution)
+
+        if(solution && solution.solved && solution.solution){
+            //mark task done
+
+        }
+
         return solution
     }catch(e){
         console.error(e)
@@ -222,161 +228,179 @@ let do_work = async function(){
         //TODO iterate
         let task = tasks[0]
         if(task){
-            //if task has result send to solver
-            if(task.result){
-                log.info(tag,"skill Result was found! attempt to solve")
-                //send to discord
-                push_sentence('result found for task: '+task.taskId+" sending to solver.",task.channel)
-                let solution = await submit_solve_work(task)
-                push_sentence(solution,task.channel)
+            //let credits for task
+            let credits = await redis.hincrby(task.taskId,'credits',1)
+            if(credits > 5){
+                push_sentence("to many attempts! aborting task attempts:"+credits,task.channel)
+                let taskUpdate = await tasksDB.update({taskId:task.taskId},{$set:{aborted:true}})
+                log.info(tag,"taskUpdate: ",taskUpdate)
+
+                let taskUpdate2 = await tasksDB.update({taskId:task.taskId},{$set:{complete:true}})
+                log.info(tag,"taskUpdate2: ",taskUpdate2)
 
             } else {
-                log.info(tag,"no skill performed! find a skill and perform")
-                //send to discord
-                push_sentence("no skill performed! finding a related skills",task.channel)
-                //if task has no result, attempt to solve
+                //if task has result send to solver
+                if(task.result){
+                    log.info(tag,"skill Result was found! attempt to solve")
+                    //send to discord
+                    push_sentence('result found for task: '+task.taskId+" sending to solver.",task.channel)
+                    let solution = await submit_solve_work(task)
+                    push_sentence(solution,task.channel)
 
-                for(let i = 0; i < task.steps.length; i++){
-                    let step = task.steps[i]
-                    log.info(tag,"step: ",step)
-                    push_sentence('Step:  '+step.action+' status: '+step.complete,task.channel)
+                } else {
+                    log.info(tag,"no skill performed! find a skill and perform")
+                    //send to discord
+                    push_sentence("no skill performed! finding a related skills",task.channel)
+                    //if task has no result, attempt to solve
 
-                    //search skills related to task
-                    //find related skills
-                    let skillsRelated:any = []
-                    for(let i = 0; i < task.keywords.length; i++){
-                        let keyword = task.keywords[i]
-                        let results = await skillsDB.find({keywords:{$all:[keyword]}})
-                        skillsRelated = skillsRelated.concat(...skillsRelated,results)
-                    }
+                    for(let i = 0; i < task.steps.length; i++){
+                        let step = task.steps[i]
+                        if(step.complete == true){
+                            return
+                        } else {
+                            log.info(tag,"step: ",step)
+                            push_sentence('Step:  '+step.action+' status: '+step.complete,task.channel)
 
-                    //attempt full task solution
-                    let solutions:any = []
-                    if(skillsRelated && skillsRelated.length > 0){
-                        //gather inputs
-                        log.info(tag,"skillsRelated: ",skillsRelated)
-                        let payloadResultSkills = {
-                            channel:task.channel,
-                            responses:{
-                                sentences:['found related skills  '+skillsRelated.length],
-                                views:[]
+                            //search skills related to task
+                            //find related skills
+                            let skillsRelated:any = []
+                            for(let i = 0; i < task.keywords.length; i++){
+                                let keyword = task.keywords[i]
+                                let results = await skillsDB.find({keywords:{$all:[keyword]}})
+                                skillsRelated = skillsRelated.concat(...skillsRelated,results)
                             }
-                        }
-                        publisher.publish('discord-bridge',JSON.stringify(payloadResultSkills))
 
-                        for(let i = 0; i < skillsRelated.length; i++){
-                            let inputs = skillsRelated[i].inputs
-                            log.info(tag,"inputs: ",inputs)
-
-                            let solution = await build_solution(inputs,task.summary)
-                            log.info(tag,"solution1: ",solution)
-                            solution = JSON.parse(solution)
-                            log.info(tag,"solution2: ",solution)
-                            solution.skillid = skillsRelated[i].skillId
-                            log.info(tag,"solution3: ",solution)
-                            solutions.push(solution)
-                        }
-
-                        //attempt all the solutions
-                        for(i = 0; i < solutions.length; i++){
-                            let solution = solutions[i]
-                            log.info(tag,"solution4: ",solution)
-                            log.info(tag,"solution5: ",solution.inputs)
-                            //if work is done attempt to execute
-                            let payloadResultSkills = {
-                                channel:task.channel,
-                                responses:{
-                                    sentences:['Attempting to execute skill:  '+solution.skillid],
-                                    views:[]
+                            //attempt full task solution
+                            let solutions:any = []
+                            if(skillsRelated && skillsRelated.length > 0){
+                                //gather inputs
+                                log.info(tag,"skillsRelated: ",skillsRelated)
+                                let payloadResultSkills = {
+                                    channel:task.channel,
+                                    responses:{
+                                        sentences:['found related skills  '+skillsRelated.length],
+                                        views:[]
+                                    }
                                 }
+                                publisher.publish('discord-bridge',JSON.stringify(payloadResultSkills))
+
+                                for(let i = 0; i < skillsRelated.length; i++){
+                                    let inputs = skillsRelated[i].inputs
+                                    log.info(tag,"inputs: ",inputs)
+
+                                    let solution = await find_inputs(inputs,task.summary)
+                                    log.info(tag,"solution1: ",solution)
+                                    solution = JSON.parse(solution)
+                                    log.info(tag,"solution2: ",solution)
+                                    solution.skillid = skillsRelated[i].skillId
+                                    log.info(tag,"solution3: ",solution)
+                                    solutions.push(solution)
+                                }
+
+                                //attempt all the solutions
+                                for(i = 0; i < solutions.length; i++){
+                                    let solution = solutions[i]
+                                    log.info(tag,"solution4: ",solution)
+                                    log.info(tag,"solution5: ",solution.inputs)
+                                    //if work is done attempt to execute
+                                    let payloadResultSkills = {
+                                        channel:task.channel,
+                                        responses:{
+                                            sentences:['Attempting to execute skill:  '+solution.skillid],
+                                            views:[]
+                                        }
+                                    }
+                                    publisher.publish('discord-bridge',JSON.stringify(payloadResultSkills))
+
+                                    let BOT_NAME = 'pioneer-exec-v1'
+                                    let workExecute = {
+                                        workId:short.generate(),
+                                        taskId:task.taskId,
+                                        username:task.username || 'ukn',
+                                        discord:task.discord,
+                                        discordId:task.discordId,
+                                        channel:task.channel,
+                                        userInfo:{},
+                                        sessionId:task.sessionId,
+                                        sessionInfo:{},
+                                        userInfoPioneer:{},
+                                        inputCount:solution.inputs.length,
+                                        skillId:solution.skillid,
+                                        inputs:solution.inputs,
+                                    }
+
+                                    queue.createWork("bots:"+BOT_NAME+":ingest",workExecute)
+
+                                    let BLOCKING_TIMEOUT_INVOCATION_EXEC = 30000
+                                    let responseExec = await redisQueue.blpop(workExecute.workId,BLOCKING_TIMEOUT_INVOCATION_EXEC)
+                                    log.info(tag,"responseExec: ",responseExec)
+
+                                    let skillOutput = JSON.parse(responseExec[1])
+                                    log.info(tag,"skillOutput: ",skillOutput)
+
+                                    //TODO update task with work done
+                                    let taskUpdate = await tasksDB.update({taskId:task.taskId},{$set:{result:skillOutput}})
+                                    log.info(tag,"taskUpdate: ",taskUpdate)
+
+                                    //TODO verify solution is attached to task in mongo
+
+                                    let BOT_NAME_SOLVER = 'pioneer-solver-v1'
+                                    let workExecuteSolver = {
+                                        workId:short.generate(),
+                                        taskId:task.taskId,
+                                        username:task.username || 'ukn',
+                                        discord:task.discord,
+                                        discordId:task.discordId,
+                                        channel:task.channel,
+                                        userInfo:{},
+                                        sessionId:task.sessionId,
+                                        sessionInfo:{},
+                                        userInfoPioneer:{},
+                                        inputCount:1,
+                                        task,
+                                        result:skillOutput.result
+                                    }
+                                    queue.createWork("bots:"+BOT_NAME_SOLVER+":ingest",workExecuteSolver)
+
+                                }
+                                //
+                            } else {
+                                //to related skills
+                                let WORKER_NAME = 'pioneer-skills-creator'
+                                let workCreate = {
+                                    workId:short.generate(),
+                                    username:task.username || 'ukn',
+                                    discord:task.discord ,
+                                    channel:task.channel,
+                                    userInfo:{},
+                                    sessionId:task.sessionId,
+                                    sessionInfo:{},
+                                    userInfoPioneer:{},
+                                    inputsCount:1,
+                                    work:step
+                                }
+                                log.info(tag,"creating work!")
+                                queue.createWork("bots:"+WORKER_NAME+":ingest",workCreate)
+
+                                let BLOCKING_TIMEOUT_INVOCATION = 30000
+                                let response = await redisQueue.blpop(workCreate.workId,BLOCKING_TIMEOUT_INVOCATION)
+                                log.info(tag,"response: ",response)
+                                let responseForamted = JSON.parse(response)
+                                log.info(tag,"response: ",responseForamted)
+                                let skillId = responseForamted.skillId
+
+                                //TODO Validate response
+
+                                //get skill from mongo
+                                let skillInfo = await skillsDB.find({skillId:skillId})
+                                log.info(tag,"skillInfo: ",skillInfo)
                             }
-                            publisher.publish('discord-bridge',JSON.stringify(payloadResultSkills))
-
-                            let BOT_NAME = 'pioneer-exec-v1'
-                            let workExecute = {
-                                workId:short.generate(),
-                                taskId:task.taskId,
-                                username:task.username || 'ukn',
-                                discord:task.discord,
-                                discordId:task.discordId,
-                                channel:task.channel,
-                                userInfo:{},
-                                sessionId:task.sessionId,
-                                sessionInfo:{},
-                                userInfoPioneer:{},
-                                inputCount:solution.inputs.length,
-                                skillId:solution.skillid,
-                                inputs:solution.inputs,
-                            }
-
-                            queue.createWork("bots:"+BOT_NAME+":ingest",workExecute)
-
-                            let BLOCKING_TIMEOUT_INVOCATION_EXEC = 30000
-                            let responseExec = await redisQueue.blpop(workExecute.workId,BLOCKING_TIMEOUT_INVOCATION_EXEC)
-                            log.info(tag,"responseExec: ",responseExec)
-
-                            let skillOutput = JSON.parse(responseExec[1])
-                            log.info(tag,"skillOutput: ",skillOutput)
-
-                            //TODO update task with work done
-                            let taskUpdate = tasksDB.update({taskId:task.taskId},{$set:{result:skillOutput}})
-                            log.info(tag,"taskUpdate: ",taskUpdate)
-
-                            //TODO verify solution is attached to task in mongo
-
-                            let BOT_NAME_SOLVER = 'pioneer-solver-v1'
-                            let workExecuteSolver = {
-                                workId:short.generate(),
-                                taskId:task.taskId,
-                                username:task.username || 'ukn',
-                                discord:task.discord,
-                                discordId:task.discordId,
-                                channel:task.channel,
-                                userInfo:{},
-                                sessionId:task.sessionId,
-                                sessionInfo:{},
-                                userInfoPioneer:{},
-                                inputCount:1,
-                                task,
-                                result:skillOutput.result
-                            }
-                            queue.createWork("bots:"+BOT_NAME_SOLVER+":ingest",workExecuteSolver)
-
                         }
-                        //
-                    } else {
-                        //to related skills
-                        let WORKER_NAME = 'pioneer-skills-creator'
-                        let workCreate = {
-                            workId:short.generate(),
-                            username:task.username || 'ukn',
-                            discord:task.discord ,
-                            channel:task.channel,
-                            userInfo:{},
-                            sessionId:task.sessionId,
-                            sessionInfo:{},
-                            userInfoPioneer:{},
-                            inputsCount:1,
-                            work:step
-                        }
-                        log.info(tag,"creating work!")
-                        queue.createWork("bots:"+WORKER_NAME+":ingest",workCreate)
-
-                        let BLOCKING_TIMEOUT_INVOCATION = 30000
-                        let response = await redisQueue.blpop(workCreate.workId,BLOCKING_TIMEOUT_INVOCATION)
-                        log.info(tag,"response: ",response)
-                        let responseForamted = JSON.parse(response)
-                        log.info(tag,"response: ",responseForamted)
-                        let skillId = responseForamted.skillId
-
-                        //TODO Validate response
-
-                        //get skill from mongo
-                        let skillInfo = await skillsDB.find({skillId:skillId})
-                        log.info(tag,"skillInfo: ",skillInfo)
-                    }
-                } // end steps
+                        return
+                    } // end steps
+                }
             }
+
         } else {
             log.info(tag,"No tasks found!")
         }

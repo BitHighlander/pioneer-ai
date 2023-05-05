@@ -1,5 +1,5 @@
 {
-  "name": "@pioneer-ai/builder",
+  "name": "@pioneer-ai/pioneer-intelligence",
   "version": "8.1.10",
   "main": "./lib/index.js",
   "types": "./lib/main.d.ts",

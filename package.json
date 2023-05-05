@@ -1,7 +1,17 @@
 {
   "name": "pioneer-ai",
   "version": "1.0.0",
+  "private": true,
+  "workspaces": {
+    "packages": [
+      "modules/**/*"
+    ],
+    "version": "independent"
+  },
   "scripts": {
+    "make": "make",
+    "dev": "make dev",
+    "push-images": "make push"
   },
   "dependencies": {
   }
