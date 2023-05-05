@@ -11,6 +11,7 @@ clean::
 	sh scripts/clean.sh
 
 build:
+	chmod +x scripts/run-dev.sh &&\
 	cd services/discord-bridge && npm i && npm run build && npx onchange 'src/**/*.ts' -- npm run build
 	cd services/pioneer-bot && npm i && npm run build && npx onchange 'src/**/*.ts' -- npm run build
 	cd services/openapi-execution-agent && npm i && npm run build && npx onchange 'src/**/*.ts' -- npm run build
@@ -31,13 +32,4 @@ push:
 	cd services/work-delegation-agent && npm i && npm run docker:push:all
 
 dev:
-	cd services/discord-bridge && npm i && npm run dev & \
-	cd services/pioneer-bot && npm i && npm run dev & \
-	cd services/openapi-execution-agent && npm i && npm run dev & \
-	cd services/openapi-skill-creation-agent && npm i && npm run dev & \
-	cd services/openapi-solver && npm i && npm run dev & \
-	cd services/openapi-task-queue && npm i && npm run dev & \
-	cd services/pioneer-ai-rest && npm i && npm run dev & \
-	cd services/work-delegation-agent && npm i && npm run dev & \
-	wait
-y
+	./scripts/run-dev.sh

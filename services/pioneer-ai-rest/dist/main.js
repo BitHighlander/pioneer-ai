@@ -14,7 +14,7 @@ var __generator = (this && this.__generator) || function (thisArg, body) {
     function verb(n) { return function (v) { return step([n, v]); }; }
     function step(op) {
         if (f) throw new TypeError("Generator is already executing.");
-        while (_) try {
+        while (g && (g = 0, op[0] && (_ = 0)), _) try {
             if (f = 1, y && (t = op[0] & 2 ? y["return"] : op[0] ? y["throw"] || ((t = y["return"]) && t.call(y), 0) : y.next) && !(t = t.call(y, op[1])).done) return t;
             if (y = 0, t) op = [op[0] & 2, t.value];
             switch (op[0]) {
@@ -87,7 +87,7 @@ app.use('/docs', swaggerUi.serve, swaggerUi.setup(swaggerDocument));
 //swagger.json
 app.use('/spec', express.static('api/dist'));
 //REST API v1
-routes_1.RegisterRoutes(app); // and here
+(0, routes_1.RegisterRoutes)(app); // and here
 subscriber.subscribe('payments');
 subscriber.subscribe('pioneer:transactions:all');
 subscriber.on('message', function (channel, payloadS) {
@@ -129,4 +129,4 @@ function errorHandler(err, req, res, next) {
     });
 }
 app.use(errorHandler);
-server.listen(API_PORT, function () { return console.log("Server started listening to port " + API_PORT); });
+server.listen(API_PORT, function () { return console.log("Server started listening to port ".concat(API_PORT)); });

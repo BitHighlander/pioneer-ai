@@ -7,14 +7,13 @@ const fs = require('fs-extra')
 const log = require('@pioneer-platform/loggerdog')()
 const axios = require('axios');
 const { Configuration, OpenAIApi } = require("openai");
-let OPENAI_API_KEY = process.env.OPENAI_API_KEY
+let OPENAI_API_KEY = process.env.OPENAI_API_KEY_4
 if(!OPENAI_API_KEY) throw Error("missing OPENAI_API_KEY")
-const configuration = new Configuration({
-    apiKey: process.env.OPENAI_API_KEY,
+let configuration = new Configuration({
+    apiKey: OPENAI_API_KEY,
 });
 const openai = new OpenAIApi(configuration);
-const cheerio = require('cheerio');
-const request = require('request');
+
 
 module.exports = {
     //Task Queue
@@ -22,8 +21,8 @@ module.exports = {
         return build_summary(input, sessionInfo)
     },
 
-    buildWork:function(input:string, sessionInfo:any){
-        return build_work(input, sessionInfo)
+    buildTask:function(summary:string){
+        return build_task(summary)
     },
 
     buildSolutionNoExternal:function(task:any){
@@ -165,14 +164,18 @@ let validate_gpt_json_output = async function(output:string, e:any){
             }
         ]
 
-        //log.info(tag,"messages: ",messages)
-        //
-        let body = {
-            model: "gpt-4",
-            messages,
-        }
-        let response = await openai.createChatCompletion(body);
-        return response.data.choices[0].message.content
+        let prompt = JSON.stringify(messages)+"\n\n"
+        const response = await openai.createCompletion({
+            model: "text-davinci-003",
+            prompt,
+            temperature: 0.7,
+            max_tokens: 756,
+            top_p: 1,
+            frequency_penalty: 0,
+            presence_penalty: 0,
+        });
+        console.log("response: ",response.data.choices[0].text)
+        return response.data.choices[0].text
     }catch(e){
         console.error(e)
     }
@@ -210,8 +213,9 @@ let find_inputs = async function(inputs:any, task:string){
     }
 }
 
+//gpt3.5
 let build_solution_noExternal = async function(task:any){
-    let tag = TAG+ " | build_solution | "
+    let tag = TAG+ " | build_solution_noExternal | "
     try{
         let messages = [
             {
@@ -224,35 +228,78 @@ let build_solution_noExternal = async function(task:any){
             }
         ]
 
-        //log.info(tag,"messages: ",messages)
-        //
-        let body = {
-            model: "gpt-4",
-            messages,
-        }
-        let response = await openai.createChatCompletion(body);
-        return response.data.choices[0].message.content
+        let prompt = JSON.stringify(messages)+"\n\n"
+        const response = await openai.createCompletion({
+            model: "text-davinci-003",
+            prompt,
+            temperature: 0.7,
+            max_tokens: 756,
+            top_p: 1,
+            frequency_penalty: 0,
+            presence_penalty: 0,
+        });
+        //console.log("response: ",response.data.choices[0].text)
+        return response.data.choices[0].text
     }catch(e){
         console.error(e)
     }
 }
 
-const build_work = async function(data:any, summary:any){
-    let tag = TAG + " | build_work | "
+//gpt3.5
+const steps_to_json = async function(input:string,err?:any){
+    let tag = TAG + " | steps_to_json | "
     try{
 
         let messages = [
             {
                 role:"system",
-                content:"analyze the requested task, break it down into small steps for a process worker. each step should be specific and achievable with a single api request or script processing the data. You always are prepaired for changes in the returned data and never assume you know how data will be formed, you create scripts that review returned data and find what you are looking for and confirm its correct."
+                content:"You are a cleanup bot. you take the output of a gpt-4 chatbot and clean it up. you remove all the system messages. you remove all the user messages. you remove all the content that is not a JSON response. you evaluate all fields of the JSON to verify it will parse with JSON. stringify without error. you never change any content"
             },
             {
                 role:"system",
-                content:"The output will go to JSON.stringify, verify the output is valid and parseable. never add ..., never cuttoff entries. return a json object with the struct { summary: string, keywords:string[] finalGoal: string, steps: steps: steps:[{ type:string, input: string, action:string  }] }"
+                content:'The output will go to JSON.stringify, verify the output is valid and parseable. never add ..., never cuttoff entries. return a json object with the struct { "summary": string, "keywords":string[] "finalGoal": string, "steps": [{ "type":string, "inputs": string[], "action":string, "summary":string, "complete":false, keywords: string[]  }] }'
             },
             {
                 role:"user",
-                content:data.text
+                content:"gpt output you need to clean: "+input
+            }
+        ]
+        if(err){
+            messages.push({
+                role:"user",
+                content:"the error was e: last time "+err.toString()
+            })
+        }
+
+        //gpt3.5
+        let prompt = JSON.stringify(messages)+"\n\n"
+        const response = await openai.createCompletion({
+            model: "text-davinci-003",
+            prompt,
+            temperature: 0.7,
+            max_tokens: 756,
+            top_p: 1,
+            frequency_penalty: 0,
+            presence_penalty: 0,
+        });
+        log.info(tag,"output (RAW): ",response.data.choices[0].text)
+        let output = JSON.parse(response.data.choices[0].text)[0]
+        log.info("output (JSON): ",output)
+        return output
+    }catch(e){
+        console.error(e)
+    }
+}
+
+//gpt3.5
+const build_task = async function(summary:any){
+    let tag = TAG + " | build_task | "
+    try{
+
+        let messages = [
+            {
+                role:"system",
+                content:"analyze the requested task, break it down into small steps for a process worker. each step should be specific and achievable with a single api request or script processing the data. You always are prepared for changes in the returned data and never assume you know how data will be formed, you create scripts that review returned data and find what you are looking for and confirm its correct."
             },
             {
                 role:"assistant",
@@ -260,22 +307,48 @@ const build_work = async function(data:any, summary:any){
             }
         ]
 
-        //
-        let body = {
-            model: "gpt-4",
-            messages,
-        }
-        let response = await openai.createChatCompletion(body);
+        let prompt = JSON.stringify(messages)+"\n\n"
+        const response = await openai.createCompletion({
+            model: "text-davinci-003",
+            prompt,
+            temperature: 0.7,
+            max_tokens: 756,
+            top_p: 1,
+            frequency_penalty: 0,
+            presence_penalty: 0,
+        });
 
-        // console.log("response: ",response.data)
-        console.log("response: ",response.data.choices[0])
-        console.log("response: ",response.data.choices[0].message.content)
-        return JSON.parse(response.data.choices[0].message.content)
+        let output = response.data.choices[0].text
+        log.info(tag,"output: ",output)
+
+        let task = await steps_to_json(output)
+        try {
+            if(!task.summary) throw Error("Missing task.summary")
+            if(!task.finalGoal) throw Error("Missing task.finalGoal")
+            if(!task.keywords) throw Error("Missing task.keywords")
+            if(!task.steps) throw Error("Missing task.steps")
+            output = task
+        } catch (err) {
+            try{
+                let parsedGptResp = await steps_to_json(output,err)
+                if(!parsedGptResp.summary) throw Error("Missing task.summary")
+                if(!parsedGptResp.finalGoal) throw Error("Missing task.finalGoal")
+                if(!parsedGptResp.keywords) throw Error("Missing task.keywords")
+                if(!parsedGptResp.steps) throw Error("Missing task.steps")
+                output = JSON.parse(parsedGptResp)
+            }catch(e){
+                log.info(tag, "Failed to parse JSON: ", err)
+                throw Error(err)
+            }
+        }
+        return output
     }catch(e){
         console.error(e)
     }
 }
 
+
+//gpt3.5
 const build_summary = async function(input:string, sessionInfo:any){
     let tag = TAG + " | build_summary | "
     try{
@@ -283,47 +356,114 @@ const build_summary = async function(input:string, sessionInfo:any){
         let messages = [
             {
                 role:"system",
-                content:"summarize the text input. determine if they are asking for live data. return a json object with the struct { summary: string, externalQuery: string, needsExternal: boolean, keywords: string[] }"
+                content:'summarize the text input. determine if they are asking for live data. return a json object with the struct { "summary": string, "externalQuery": string, "needsExternal": boolean, "keywords": string[] }'
             },
+            {
+                role:"user",
+                content:"the text input is: "+input
+            }
         ]
 
-        //session
-        for(let i = 0; i < sessionInfo.length; i++){
-            let messageInfo = sessionInfo[i]
-            log.debug(tag,"messageInfo: ",messageInfo)
-            if(messageInfo.username && messageInfo.output && messageInfo.output.sentences){
-                log.debug(tag," I think the session is valid! ")
-                log.debug(tag,"messageInfo.username: ",messageInfo.username)
-                log.debug(tag,"messageInfo.output: ",messageInfo.output)
-                messages.push({
-                    role:"user",
-                    content: messageInfo.text
-                })
-                messages.push({
-                    role:"assistant",
-                    content: messageInfo.output.sentences.toString()
-                })
-            } else {
-                log.error(tag,"invalid messageInfo: ",messageInfo)
+        //TODO session context
+        // for(let i = 0; i < sessionInfo.length; i++){
+        //     let messageInfo = sessionInfo[i]
+        //     log.debug(tag,"messageInfo: ",messageInfo)
+        //     if(messageInfo.username && messageInfo.output && messageInfo.output.sentences){
+        //         log.debug(tag," I think the session is valid! ")
+        //         log.debug(tag,"messageInfo.username: ",messageInfo.username)
+        //         log.debug(tag,"messageInfo.output: ",messageInfo.output)
+        //         messages.push({
+        //             role:"user",
+        //             content: messageInfo.text
+        //         })
+        //         messages.push({
+        //             role:"assistant",
+        //             content: messageInfo.output.sentences.toString()
+        //         })
+        //     } else {
+        //         log.error(tag,"invalid messageInfo: ",messageInfo)
+        //     }
+        // }
+
+        let prompt = JSON.stringify(messages)+"\n\n"
+        const response = await openai.createCompletion({
+            model: "text-davinci-003",
+            prompt,
+            temperature: 0.7,
+            max_tokens: 756,
+            top_p: 1,
+            frequency_penalty: 0,
+            presence_penalty: 0,
+        });
+        let output = null
+        try {
+            output = JSON.parse(response.data.choices[0].text)
+        } catch (err) {
+            try{
+                let parsedGptResp = await validate_gpt_json_output(output,err)
+                output = JSON.parse(parsedGptResp)
+            }catch(e){
+                log.info(tag, "Failed to parse JSON: ", err)
+                throw Error(err)
             }
         }
-        messages.push({ role: 'user', content:  input })
-
-        //
-        let body = {
-            model: "gpt-4",
-            messages,
-        }
-        let response = await openai.createChatCompletion(body);
-
-        // console.log("response: ",response.data)
-        console.log("response: ",response.data.choices[0])
-        console.log("response: ",response.data.choices[0].message.content)
-        return JSON.parse(response.data.choices[0].message.content)
-    }catch(e){
-        console.error(e)
+        return output
+    } catch(e){
+        console.error(tag, "Error: ", e)
+        throw Error(e)
     }
 }
+
+
+
+// const build_summary = async function(input:string, sessionInfo:any){
+//     let tag = TAG + " | build_summary | "
+//     try{
+//
+//         let messages = [
+//             {
+//                 role:"system",
+//                 content:"summarize the text input. determine if they are asking for live data. return a json object with the struct { summary: string, externalQuery: string, needsExternal: boolean, keywords: string[] }"
+//             },
+//         ]
+//
+//         //session
+//         for(let i = 0; i < sessionInfo.length; i++){
+//             let messageInfo = sessionInfo[i]
+//             log.debug(tag,"messageInfo: ",messageInfo)
+//             if(messageInfo.username && messageInfo.output && messageInfo.output.sentences){
+//                 log.debug(tag," I think the session is valid! ")
+//                 log.debug(tag,"messageInfo.username: ",messageInfo.username)
+//                 log.debug(tag,"messageInfo.output: ",messageInfo.output)
+//                 messages.push({
+//                     role:"user",
+//                     content: messageInfo.text
+//                 })
+//                 messages.push({
+//                     role:"assistant",
+//                     content: messageInfo.output.sentences.toString()
+//                 })
+//             } else {
+//                 log.error(tag,"invalid messageInfo: ",messageInfo)
+//             }
+//         }
+//         messages.push({ role: 'user', content:  input })
+//
+//         //
+//         let body = {
+//             model: "gpt-4",
+//             messages,
+//         }
+//         let response = await openai.createChatCompletion(body);
+//
+//         // console.log("response: ",response.data)
+//         console.log("response: ",response.data.choices[0])
+//         console.log("response: ",response.data.choices[0].message.content)
+//         return JSON.parse(response.data.choices[0].message.content)
+//     }catch(e){
+//         console.error(e)
+//     }
+// }
 
 //GPT3
 // const deliberate_on_input = async function(messages:any){
@@ -354,6 +494,124 @@ const build_summary = async function(input:string, sessionInfo:any){
 //
 //
 //         return output
+//     }catch(e){
+//         console.error(e)
+//     }
+// }
+
+//TODO move these to mongo/Long term memory
+//retires skills
+// const build_summary = async function(input:string, sessionInfo:any){
+//     let tag = TAG + " | build_summary | "
+//     try{
+//
+//         let messages = [
+//             {
+//                 role:"system",
+//                 content:"summarize the text input. determine if they are asking for live data. return a json object with the struct { summary: string, externalQuery: string, needsExternal: boolean, keywords: string[] }"
+//             },
+//         ]
+//
+//         //session
+//         for(let i = 0; i < sessionInfo.length; i++){
+//             let messageInfo = sessionInfo[i]
+//             log.debug(tag,"messageInfo: ",messageInfo)
+//             if(messageInfo.username && messageInfo.output && messageInfo.output.sentences){
+//                 log.debug(tag," I think the session is valid! ")
+//                 log.debug(tag,"messageInfo.username: ",messageInfo.username)
+//                 log.debug(tag,"messageInfo.output: ",messageInfo.output)
+//                 messages.push({
+//                     role:"user",
+//                     content: messageInfo.text
+//                 })
+//                 messages.push({
+//                     role:"assistant",
+//                     content: messageInfo.output.sentences.toString()
+//                 })
+//             } else {
+//                 log.error(tag,"invalid messageInfo: ",messageInfo)
+//             }
+//         }
+//         messages.push({ role: 'user', content:  input })
+//
+//         //
+//         let body = {
+//             model: "gpt-4",
+//             messages,
+//         }
+//         let response = await openai.createChatCompletion(body);
+//
+//         // console.log("response: ",response.data)
+//         console.log("response: ",response.data.choices[0])
+//         console.log("response: ",response.data.choices[0].message.content)
+//         return JSON.parse(response.data.choices[0].message.content)
+//     }catch(e){
+//         console.error(e)
+//     }
+// }
+
+// const build_work = async function(data:any, summary:any){
+//     let tag = TAG + " | build_work | "
+//     try{
+//
+//         let messages = [
+//             {
+//                 role:"system",
+//                 content:"analyze the requested task, break it down into small steps for a process worker. each step should be specific and achievable with a single api request or script processing the data. You always are prepaired for changes in the returned data and never assume you know how data will be formed, you create scripts that review returned data and find what you are looking for and confirm its correct."
+//             },
+//             {
+//                 role:"system",
+//                 content:"The output will go to JSON.stringify, verify the output is valid and parseable. never add ..., never cuttoff entries. return a json object with the struct { summary: string, keywords:string[] finalGoal: string, steps: steps: steps:[{ type:string, input: string, action:string  }] }"
+//             },
+//             {
+//                 role:"user",
+//                 content:data.text
+//             },
+//             {
+//                 role:"assistant",
+//                 content:"summary: "+JSON.stringify(summary)
+//             }
+//         ]
+//
+//         //
+//         let body = {
+//             model: "gpt-4",
+//             messages,
+//         }
+//         let response = await openai.createChatCompletion(body);
+//
+//         // console.log("response: ",response.data)
+//         console.log("response: ",response.data.choices[0])
+//         console.log("response: ",response.data.choices[0].message.content)
+//         return JSON.parse(response.data.choices[0].message.content)
+//     }catch(e){
+//         console.error(e)
+//     }
+// }
+
+//test
+// let build_solution = async function(task:any){
+//     let tag = TAG+ " | build_solution | "
+//     try{
+//         let messages = [
+//             {
+//                 role:"system",
+//                 content:"You are a solver bot. You review a task and solve it"
+//             },
+//             {
+//                 role:"user",
+//                 content:"the task im trying to solve is "+JSON.stringify(task)
+//             }
+//         ]
+//
+//         //log.info(tag,"messages: ",messages)
+//         //
+//         let body = {
+//             model: "gpt-4",
+//             messages,
+//         }
+//         let response = await openai.createChatCompletion(body);
+//         return response.data.choices[0].message.content
 //     }catch(e){
 //         console.error(e)
 //     }
