@@ -28,7 +28,7 @@ push:
 	cd services/openapi-skill-creation-agent && npm i && npm run docker:push:all
 	cd services/openapi-solver && npm i && npm run docker:push:all
 	cd services/openapi-task-queue && npm i && npm run docker:push:all
-	cd services/openapi-ai-rest && npm i && npm run docker:push:all
+	cd services/pioneer-ai-rest && npm i && npm run docker:push:all
 	cd services/work-delegation-agent && npm i && npm run docker:push:all
 
 dev:
