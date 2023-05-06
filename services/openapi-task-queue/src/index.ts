@@ -18,7 +18,7 @@ const short = require('short-uuid');
 const Tokenizer = require('sentence-tokenizer');
 const tokenizer = new Tokenizer('reddit');
 
-let ai = require('@pioneer-ai/pioneer-intelligence')
+let ai = require('@pioneer-platform/pioneer-intelligence')
 
 let queue = require("@pioneer-platform/redis-queue")
 let connection  = require("@pioneer-platform/default-mongo")

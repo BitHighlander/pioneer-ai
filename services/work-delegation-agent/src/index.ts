@@ -63,7 +63,7 @@ const knowledgeDB = connection.get('knowledge')
 const skillsDB = connection.get('skills')
 const tasksDB = connection.get('tasks')
 let fs = require('fs')
-let ai = require('@pioneer-ai/pioneer-intelligence')
+let ai = require('@pioneer-platform/pioneer-intelligence')
 
 
 interface Data {
