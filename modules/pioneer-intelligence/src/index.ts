@@ -57,6 +57,7 @@ module.exports = {
 /*****************************************
  // Primary
  //*****************************************/
+//gpt3.5
 let build_solution = async function(result:any, task:any){
     let tag = TAG+ " | build_solution | "
     try{
@@ -88,6 +89,7 @@ let build_solution = async function(result:any, task:any){
     }
 }
 
+//gpt3.5
 const build_a_script = async function(output:string, context:string){
     let tag = TAG+" | build_a_script | "
     try{
@@ -141,7 +143,7 @@ const build_a_script = async function(output:string, context:string){
     }
 }
 
-//test
+//gpt3.5
 let validate_gpt_json_output = async function(output:string, e:any){
     let tag = TAG+ " | validate_gpt_json_output | "
     try{
@@ -181,37 +183,226 @@ let validate_gpt_json_output = async function(output:string, e:any){
     }
 }
 
-
-let find_inputs = async function(inputs:any, task:string){
-    let tag = TAG+ " | find_inputs | "
+//gpt3.5
+const inputs_to_json = async function(input:string,err?:any){
+    let tag = TAG + " | inputs_to_json | "
     try{
+
         let messages = [
             {
                 role:"system",
-                content:"You are a input finder bot. You review a task and provide a solution. the solution is a set of inputs into a executable script. inputs are an array of strings. the strings are the values passed to the exec."
+                content:"You are a cleanup bot. you take the output of a gpt-3 chatbot and clean it up. you remove all the system messages. you remove all the user messages. you remove all the content that is not a JSON response. you evaluate all fields of the JSON to verify it will parse with JSON. stringify without error. you never change any content"
             },
             {
                 role:"system",
                 content:'you always output in the following JSON stringifies format { "inputs": string[]}'
             },
             {
+                role:"system",
+                content:'never return Answer: ...and json string, just return the json string'
+            },
+            {
+                role:"system",
+                content:'only have one input never multiple elements in the array'
+            },
+            {
                 role:"user",
-                content:"inputs the the skill needed: "+JSON.stringify(inputs)+" and the task im trying to solve is "+task+" build a set of inputs that will solve this task"
+                content:"gpt output you need to clean: "+JSON.stringify(input)
             }
         ]
-
-        //log.info(tag,"messages: ",messages)
-        //
-        let body = {
-            model: "gpt-4",
-            messages,
+        if(err){
+            messages.push({
+                role:"user",
+                content:"the error was e: last time "+err.toString()
+            })
         }
-        let response = await openai.createChatCompletion(body);
-        return response.data.choices[0].message.content
+
+        //gpt3.5
+        let prompt = JSON.stringify(messages)+"\n\n"
+        const response = await openai.createCompletion({
+            model: "text-davinci-003",
+            prompt,
+            temperature: 0.7,
+            max_tokens: 756,
+            top_p: 1,
+            frequency_penalty: 0,
+            presence_penalty: 0,
+        });
+        log.info(tag,"output (RAW): ",response.data.choices[0].text)
+        let output = JSON.parse(response.data.choices[0].text)
+        log.info(tag,"output FINAL (JSON): ",output)
+        return output.inputs
     }catch(e){
-        console.error(e)
+        log.error(tag,e)
+        throw Error(e)
     }
 }
+
+/*
+
+ */
+let find_inputs = async function(skill:any, task:any){
+    let tag = TAG + " | find_inputs | "
+    try{
+
+        // TASK
+        if(!task.finalGoal) throw Error("invalid task.finalGoal missing")
+
+        // Skill
+        if(!skill.summary) throw Error("invalid skill.summary missing")
+
+        let messages:any = [
+            {
+                role:"system",
+                content:"You are an task completion bot. You review a task and provided, find relevant information in the task action field. and apply that task action to the input template."
+            },
+            // {
+            //     role:"system",
+            //     content:'only have one input never multiple elements in the array'
+            // },
+            // {
+            //     role:"system",
+            //     content:'you always output in the following JSON stringifies format { "inputs": string[]}'
+            // },
+            // {
+            //     role:"system",
+            //     content:'never return Answer: ...and json string, just return the json string'
+            // },
+            {
+                role:"system",
+                content:"The final goal of this task is to "+task.finalGoal
+            },
+            {
+                role:"system",
+                content:"You have the skill to "+skill.summary
+            },
+            {
+                role:"system",
+                content:"to you use this skill you need to output the inputs needed to this script"
+            },
+            {
+                role:"system",
+                content:'you always output in the following JSON stringifies format { "inputs": string[]}'
+            },
+            // {
+            //     role:"user",
+            //     content:"the task im trying to solve is "+JSON.stringify(task)+" populate the needed input from the task using the template of the inputs needed for the skill"
+            // }
+        ]
+
+        //for inputs
+        for(let i = 0; i < skill.inputs.length; i++){
+            messages.push({
+                role:"user",
+                content:"input "+i+" is "+skill.inputs[i].description
+            })
+        }
+
+        let prompt = JSON.stringify(messages)+"\n\n"
+        const response = await openai.createCompletion({
+            model: "text-davinci-003",
+            prompt,
+            temperature: 0.7,
+            max_tokens: 1756,
+            top_p: 1,
+            frequency_penalty: 0,
+            presence_penalty: 0,
+        });
+        let output = response.data.choices[0].text
+        log.info(tag,"output (RAW): ",output)
+        try {
+            output = JSON.parse(output)
+            if(!output.inputs) throw Error("no inputs found! expected {inputs:string[]}")
+        } catch (err) {
+            try{
+                let parsedGptResp = await inputs_to_json(output,err)
+                output = JSON.parse(parsedGptResp)
+                if(!output.inputs) throw Error("no inputs found! expected {inputs:string[]}")
+            }catch(e){
+                log.info(tag, "Failed to parse JSON: ", err)
+                throw Error(err)
+            }
+        }
+        return output.inputs
+    }catch(e){
+        console.error(e)
+        throw Error(e)
+    }
+}
+
+// let find_inputs = async function(inputs:any, task:string){
+//     let tag = TAG+ " | find_inputs | "
+//     try{
+//         let messages:any = [
+//             {
+//                 role:"system",
+//                 content:"You are an input builder bot. You review a task and provided, find relevant information in the task action field. and apply that task action to the input template. for instance input:'the content of the query' would turn into 'news about an event in Moscow today'"
+//             },
+//             // {
+//             //     role:"system",
+//             //     content:"You are a input builder bot. You review a task and provide a relevant input for the script. the solution is a set of inputs into a executable script. inputs are an array of strings. the strings are the values passed to the exec. for instance action: 'Search for latest news about an event in Moscow today', and template input of {\n" +
+//             //         "position\n" +
+//             //         "1\n" +
+//             //         "name\n" +
+//             //         "\"searchParams\"\n" +
+//             //         "description\n" +
+//             //         "\"the content of the query\"\n" +
+//             //         "example\n" +
+//             //         "\"what is a keepkey?\"} would have an input of [\"news about an event in Moscow today\"] you NEVER NEVER NEVER use the example as the result! never! the sample value will never be a valid output for a calculated input!"
+//             // },
+//             {
+//                 role:"system",
+//                 content:'only have one input never multiple elements in the array'
+//             },
+//             {
+//                 role:"system",
+//                 content:'you always output in the following JSON stringifies format { "inputs": string[]}'
+//             },
+//             {
+//                 role:"system",
+//                 content:'never return Answer: ...and json string, just return the json string'
+//             },
+//             // {
+//             //     role:"user",
+//             //     content:"Template of the type of inputs needed for this skill: "+JSON.stringify(inputs)
+//             // },
+//             {
+//                 role:"user",
+//                 content:"the task im trying to solve is "+JSON.stringify(task)+" populate the needed input from the task using the template of the inputs needed for the skill"
+//             }
+//         ]
+//
+//         let prompt = JSON.stringify(messages)+"\n\n"
+//         const response = await openai.createCompletion({
+//             model: "text-davinci-003",
+//             prompt,
+//             temperature: 0.7,
+//             max_tokens: 1756,
+//             top_p: 1,
+//             frequency_penalty: 0,
+//             presence_penalty: 0,
+//         });
+//         let output = response.data.choices[0].text
+//         log.info(tag,"output (RAW): ",output)
+//         try {
+//             output = JSON.parse(output)
+//             if(!output.inputs) throw Error("no inputs found! expected {inputs:string[]}")
+//         } catch (err) {
+//             try{
+//                 let parsedGptResp = await inputs_to_json(output,err)
+//                 output = JSON.parse(parsedGptResp)
+//                 if(!output.inputs) throw Error("no inputs found! expected {inputs:string[]}")
+//             }catch(e){
+//                 log.info(tag, "Failed to parse JSON: ", err)
+//                 throw Error(err)
+//             }
+//         }
+//         return output.inputs
+//     }catch(e){
+//         console.error(e)
+//         throw Error(e)
+//     }
+// }
 
 //gpt3.5
 let build_solution_noExternal = async function(task:any){
@@ -282,9 +473,14 @@ const steps_to_json = async function(input:string,err?:any){
             frequency_penalty: 0,
             presence_penalty: 0,
         });
-        log.info(tag,"output (RAW): ",response.data.choices[0].text)
-        let output = JSON.parse(response.data.choices[0].text)[0]
-        log.info("output (JSON): ",output)
+        let output
+        try{
+            log.info(tag,"output (RAW): ",response.data.choices[0].text)
+            output = JSON.parse(response.data.choices[0].text)[0]
+            log.info(tag,"output (JSON): ",output)
+        }catch(e){
+            steps_to_json(response.data.choices[0].text,e)
+        }
         return output
     }catch(e){
         console.error(e)
@@ -601,6 +797,37 @@ const build_summary = async function(input:string, sessionInfo:any){
 //             {
 //                 role:"user",
 //                 content:"the task im trying to solve is "+JSON.stringify(task)
+//             }
+//         ]
+//
+//         //log.info(tag,"messages: ",messages)
+//         //
+//         let body = {
+//             model: "gpt-4",
+//             messages,
+//         }
+//         let response = await openai.createChatCompletion(body);
+//         return response.data.choices[0].message.content
+//     }catch(e){
+//         console.error(e)
+//     }
+// }
+
+// let find_inputs = async function(inputs:any, task:string){
+//     let tag = TAG+ " | find_inputs | "
+//     try{
+//         let messages = [
+//             {
+//                 role:"system",
+//                 content:"You are a input finder bot. You review a task and provide a solution. the solution is a set of inputs into a executable script. inputs are an array of strings. the strings are the values passed to the exec."
+//             },
+//             {
+//                 role:"system",
+//                 content:'you always output in the following JSON stringifies format { "inputs": string[]}'
+//             },
+//             {
+//                 role:"user",
+//                 content:"inputs the the skill needed: "+JSON.stringify(inputs)+" and the task im trying to solve is "+task+" build a set of inputs that will solve this task"
 //             }
 //         ]
 //

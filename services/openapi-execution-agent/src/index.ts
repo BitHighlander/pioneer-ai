@@ -177,7 +177,7 @@ let do_work = async function(){
         work = await queue.getWork("bots:"+BOT_NAME+":ingest", 60)
         if(work){
             log.info("work: ",work)
-            if(!work.skillId) throw Error("100: invalid work! missing work")
+            if(!work.skillId) throw Error("100: invalid work! missing skillId")
             if(!work.taskId) throw Error("100: invalid work! missing taskId")
             if(!work.inputCount) throw Error("100: invalid work! missing inputCount")
             if(!work.inputs) throw Error("100: invalid work! missing inputs")

@@ -63,6 +63,7 @@ const knowledgeDB = connection.get('knowledge')
 const skillsDB = connection.get('skills')
 const tasksDB = connection.get('tasks')
 let fs = require('fs')
+let ai = require('@pioneer-ai/pioneer-intelligence')
 
 
 interface Data {
@@ -99,36 +100,36 @@ const help = () => {
 }
 
 //test
-let find_inputs = async function(inputs:any, task:string){
-    let tag = TAG+ " | find_inputs | "
-    try{
-        let messages = [
-            {
-                role:"system",
-                content:"You are a input finder bot. You review a task and provide a solution. the solution is a set of inputs into a executable script. inputs are an array of strings. the strings are the values passed to the exec."
-            },
-            {
-                role:"system",
-                content:'you always output in the following JSON stringifies format { "inputs": string[]}'
-            },
-            {
-                role:"user",
-                content:"inputs the the skill needed: "+JSON.stringify(inputs)+" and the task im trying to solve is "+task+" build a set of inputs that will solve this task"
-            }
-        ]
-
-        //log.info(tag,"messages: ",messages)
-        //
-        let body = {
-            model: "gpt-4",
-            messages,
-        }
-        let response = await openai.createChatCompletion(body);
-        return response.data.choices[0].message.content
-    }catch(e){
-        console.error(e)
-    }
-}
+// let find_inputs = async function(inputs:any, task:string){
+//     let tag = TAG+ " | find_inputs | "
+//     try{
+//         let messages = [
+//             {
+//                 role:"system",
+//                 content:"You are a input finder bot. You review a task and provide a solution. the solution is a set of inputs into a executable script. inputs are an array of strings. the strings are the values passed to the exec."
+//             },
+//             {
+//                 role:"system",
+//                 content:'you always output in the following JSON stringifies format { "inputs": string[]}'
+//             },
+//             {
+//                 role:"user",
+//                 content:"inputs the the skill needed: "+JSON.stringify(inputs)+" and the task im trying to solve is "+task+" build a set of inputs that will solve this task"
+//             }
+//         ]
+//
+//         //log.info(tag,"messages: ",messages)
+//         //
+//         let body = {
+//             model: "gpt-4",
+//             messages,
+//         }
+//         let response = await openai.createChatCompletion(body);
+//         return response.data.choices[0].message.content
+//     }catch(e){
+//         console.error(e)
+//     }
+// }
 
 //submit_solve_work
 let submit_solve_work = async function(task:any){
@@ -174,10 +175,32 @@ let submit_solve_work = async function(task:any){
 }
 
 //submit_exec_work
-let submit_exec_work = async function(){
+let submit_exec_work = async function(task:any,skill:any,inputs:any){
     let tag = TAG+ " | submit_exec_work | "
     try{
+        if(!inputs) throw Error("missing inputs")
+        if(!skill) throw Error("missing skill")
+        if(!task) throw Error("missing task")
+        if(!skill.skillId) throw Error("missing skillid")
+        if(!task.taskId) throw Error("missing taskId")
 
+        let BOT_NAME = 'pioneer-exec-v1'
+        let workExecute = {
+            workId:short.generate(),
+            taskId:task.taskId,
+            username:task.username || 'ukn',
+            discord:task.discord,
+            discordId:task.discordId,
+            channel:task.channel,
+            userInfo:{},
+            sessionId:task.sessionId,
+            sessionInfo:{},
+            userInfoPioneer:{},
+            inputCount:inputs.length,
+            skillId:skill.skillId,
+            inputs:inputs,
+        }
+        queue.createWork("bots:"+BOT_NAME+":ingest",workExecute)
         return true
     }catch(e){
         console.error(e)
@@ -185,10 +208,24 @@ let submit_exec_work = async function(){
 }
 
 //submit_skill_work
-let submit_skill_work = async function(){
-    let tag = TAG+ " | submit_skill_work | "
+let submit_skill_creator = async function(task:any,step:any){
+    let tag = TAG+ " | submit_skill_creator | "
     try{
-
+        let WORKER_NAME = 'pioneer-skills-creator'
+        let workCreate = {
+            workId:short.generate(),
+            username:task.username || 'ukn',
+            discord:task.discord ,
+            channel:task.channel,
+            userInfo:{},
+            sessionId:task.sessionId,
+            sessionInfo:{},
+            userInfoPioneer:{},
+            inputsCount:1,
+            work:step
+        }
+        log.info(tag,"creating work!")
+        queue.createWork("bots:"+WORKER_NAME+":ingest",workCreate)
         return true
     }catch(e){
         console.error(e)
@@ -230,7 +267,9 @@ let do_work = async function(){
         if(task){
             //let credits for task
             let credits = await redis.hincrby(task.taskId,'credits',1)
-            if(credits > 5){
+            push_sentence('credits:  '+credits,task.channel)
+
+            if(credits > 50){
                 push_sentence("to many attempts! aborting task attempts:"+credits,task.channel)
                 let taskUpdate = await tasksDB.update({taskId:task.taskId},{$set:{aborted:true}})
                 log.info(tag,"taskUpdate: ",taskUpdate)
@@ -248,15 +287,16 @@ let do_work = async function(){
                     push_sentence(solution,task.channel)
 
                 } else {
-                    log.info(tag,"no skill performed! find a skill and perform")
+                    log.info(tag,"no skill performed! find a skill to perform on first step")
                     //send to discord
                     push_sentence("no skill performed! finding a related skills",task.channel)
                     //if task has no result, attempt to solve
 
                     for(let i = 0; i < task.steps.length; i++){
                         let step = task.steps[i]
+                        log.info(tag,"step: ",step)
                         if(step.complete == true){
-                            return
+                            log.info(tag,"step already complete! skipping")
                         } else {
                             log.info(tag,"step: ",step)
                             push_sentence('Step:  '+step.action+' status: '+step.complete,task.channel)
@@ -271,132 +311,45 @@ let do_work = async function(){
                             }
 
                             //attempt full task solution
-                            let solutions:any = []
+                            let performedSkills:any = task.performedSkills || []
                             if(skillsRelated && skillsRelated.length > 0){
                                 //gather inputs
                                 log.info(tag,"skillsRelated: ",skillsRelated)
-                                let payloadResultSkills = {
-                                    channel:task.channel,
-                                    responses:{
-                                        sentences:['found related skills  '+skillsRelated.length],
-                                        views:[]
-                                    }
-                                }
-                                publisher.publish('discord-bridge',JSON.stringify(payloadResultSkills))
 
                                 for(let i = 0; i < skillsRelated.length; i++){
-                                    let inputs = skillsRelated[i].inputs
-                                    log.info(tag,"inputs: ",inputs)
+                                    let skill = skillsRelated[i]
+                                    log.info(tag,"skill: ",skill)
+                                    //if skill is not performed
+                                    if(performedSkills.indexOf(skill.skillId) == -1){
+                                        //perform skill
+                                        push_sentence('found related skill  '+skill.skillId,task.channel)
+                                        //calculate inputs
+                                        let inputsTemplate = skill.inputs
+                                        log.info(tag,"inputsTemplate: ",inputsTemplate)
+                                        log.info(tag,"task: ",task)
+                                        let inputs = await ai.findInputs(skill,task)
+                                        // if(inputs.length > inputsTemplate.length) throw Error("ERROR too many inputs found! bad input object")
+                                        // if(inputs.length !== inputsTemplate.length) throw Error("ERROR incorrect inputs! array length mismatch")
+                                        log.info(tag,"inputs: ",inputs)
 
-                                    let solution = await find_inputs(inputs,task.summary)
-                                    log.info(tag,"solution1: ",solution)
-                                    solution = JSON.parse(solution)
-                                    log.info(tag,"solution2: ",solution)
-                                    solution.skillid = skillsRelated[i].skillId
-                                    log.info(tag,"solution3: ",solution)
-                                    solutions.push(solution)
-                                }
-
-                                //attempt all the solutions
-                                for(i = 0; i < solutions.length; i++){
-                                    let solution = solutions[i]
-                                    log.info(tag,"solution4: ",solution)
-                                    log.info(tag,"solution5: ",solution.inputs)
-                                    //if work is done attempt to execute
-                                    let payloadResultSkills = {
-                                        channel:task.channel,
-                                        responses:{
-                                            sentences:['Attempting to execute skill:  '+solution.skillid],
-                                            views:[]
+                                        //TODO handle the breakdown if multiple inputs are needed per skill
+                                        //for each input, make separate query
+                                        for(let i = 0; i < inputs.length; i++){
+                                            let inputsSkill = inputs[i]
+                                            inputsSkill = [inputsSkill]
+                                            //TODO make this a view
+                                            push_sentence('Attempting to execute skill:  '+skill.skillId + " with inputs: "+JSON.stringify(inputsSkill),task.channel)
+                                            submit_exec_work(task,skill,inputs)
                                         }
+                                    } else {
+                                        push_sentence('Already Attempted skill  '+skill.skillId,task.channel)
                                     }
-                                    publisher.publish('discord-bridge',JSON.stringify(payloadResultSkills))
-
-                                    let BOT_NAME = 'pioneer-exec-v1'
-                                    let workExecute = {
-                                        workId:short.generate(),
-                                        taskId:task.taskId,
-                                        username:task.username || 'ukn',
-                                        discord:task.discord,
-                                        discordId:task.discordId,
-                                        channel:task.channel,
-                                        userInfo:{},
-                                        sessionId:task.sessionId,
-                                        sessionInfo:{},
-                                        userInfoPioneer:{},
-                                        inputCount:solution.inputs.length,
-                                        skillId:solution.skillid,
-                                        inputs:solution.inputs,
-                                    }
-
-                                    queue.createWork("bots:"+BOT_NAME+":ingest",workExecute)
-
-                                    let BLOCKING_TIMEOUT_INVOCATION_EXEC = 30000
-                                    let responseExec = await redisQueue.blpop(workExecute.workId,BLOCKING_TIMEOUT_INVOCATION_EXEC)
-                                    log.info(tag,"responseExec: ",responseExec)
-
-                                    let skillOutput = JSON.parse(responseExec[1])
-                                    log.info(tag,"skillOutput: ",skillOutput)
-
-                                    //TODO update task with work done
-                                    let taskUpdate = await tasksDB.update({taskId:task.taskId},{$set:{result:skillOutput}})
-                                    log.info(tag,"taskUpdate: ",taskUpdate)
-
-                                    //TODO verify solution is attached to task in mongo
-
-                                    let BOT_NAME_SOLVER = 'pioneer-solver-v1'
-                                    let workExecuteSolver = {
-                                        workId:short.generate(),
-                                        taskId:task.taskId,
-                                        username:task.username || 'ukn',
-                                        discord:task.discord,
-                                        discordId:task.discordId,
-                                        channel:task.channel,
-                                        userInfo:{},
-                                        sessionId:task.sessionId,
-                                        sessionInfo:{},
-                                        userInfoPioneer:{},
-                                        inputCount:1,
-                                        task,
-                                        result:skillOutput.result
-                                    }
-                                    queue.createWork("bots:"+BOT_NAME_SOLVER+":ingest",workExecuteSolver)
-
                                 }
-                                //
                             } else {
-                                //to related skills
-                                let WORKER_NAME = 'pioneer-skills-creator'
-                                let workCreate = {
-                                    workId:short.generate(),
-                                    username:task.username || 'ukn',
-                                    discord:task.discord ,
-                                    channel:task.channel,
-                                    userInfo:{},
-                                    sessionId:task.sessionId,
-                                    sessionInfo:{},
-                                    userInfoPioneer:{},
-                                    inputsCount:1,
-                                    work:step
-                                }
-                                log.info(tag,"creating work!")
-                                queue.createWork("bots:"+WORKER_NAME+":ingest",workCreate)
-
-                                let BLOCKING_TIMEOUT_INVOCATION = 30000
-                                let response = await redisQueue.blpop(workCreate.workId,BLOCKING_TIMEOUT_INVOCATION)
-                                log.info(tag,"response: ",response)
-                                let responseForamted = JSON.parse(response)
-                                log.info(tag,"response: ",responseForamted)
-                                let skillId = responseForamted.skillId
-
-                                //TODO Validate response
-
-                                //get skill from mongo
-                                let skillInfo = await skillsDB.find({skillId:skillId})
-                                log.info(tag,"skillInfo: ",skillInfo)
+                                push_sentence('No related Skills found! create new skill  ',task.channel)
+                                submit_skill_creator(task,step)
                             }
                         }
-                        return
                     } // end steps
                 }
             }
@@ -416,6 +369,7 @@ let do_work = async function(){
         queue.createWork("pioneer:pubkey:ingest:deadletter",work)
         //await sleep(10000)
     }
+    //TODO loop
     await sleep(5000)
     //dont stop working even if error
     do_work()

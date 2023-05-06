@@ -214,6 +214,7 @@ let do_work = async function(){
             }
 
             if(isSolved.solved){
+                //use AI to score the solution
                 log.info(tag,"SOLVED WINNING!!!!!")
                 push_sentence("Solution: "+isSolved.solution,work.channel)
                 //update mongo!

@@ -144,6 +144,14 @@ const deliberate_on_input = async function(session:any,data:Data,username:string
             if(!workResp.keywords) throw Error("Missing workResp.keywords")
             if(!workResp.steps) throw Error("Missing workResp.steps")
 
+            //verify all the steps are complete:false
+            for(let i = 0; i < workResp.steps.length; i++){
+                let step = workResp.steps[i]
+                if(step.complete){
+                    workResp.steps[i].complete = false
+                }
+            }
+
             // create taskId
             let taskId = short.generate()
             //TODO hack removeme
