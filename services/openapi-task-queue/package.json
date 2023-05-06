@@ -10,9 +10,9 @@
     "dev": "npm run build && npm run start",
     "dev-task-queue": "npm run build && npm run start",
     "prepublish": "npm run build",
-    "docker:build": "docker build -t pioneer/pioneer-ai:latest .",
-    "docker:tag": "docker tag pioneer/pioneer-ai:latest registry.digitalocean.com/pioneer/pioneer/pioneer-ai:latest",
-    "docker:push": "docker push registry.digitalocean.com/pioneer/pioneer/pioneer-ai:latest",
+    "docker:build": "docker build -t pioneer/openapi-task-solver:latest .",
+    "docker:tag": "docker tag pioneer/openapi-task-solver:latest registry.digitalocean.com/pioneer/pioneer/openapi-task-solver:latest",
+    "docker:push": "docker push registry.digitalocean.com/pioneer/pioneer/openapi-task-solver:latest",
     "docker:push:all": "npm run docker:build && npm run docker:tag && npm run docker:push"
   },
   "dependencies": {

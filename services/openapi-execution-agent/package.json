@@ -9,9 +9,9 @@
     "dev": "npm run build && npm run start",
     "dev-exec": "npm run build && npm run start",
     "prepublish": "npm run build",
-    "docker:build": "docker build -t pioneer/pioneer-ai:latest .",
-    "docker:tag": "docker tag pioneer/pioneer-ai:latest registry.digitalocean.com/pioneer/pioneer/pioneer-ai:latest",
-    "docker:push": "docker push registry.digitalocean.com/pioneer/pioneer/pioneer-ai:latest",
+    "docker:build": "docker build -t pioneer/openapi-execution-agent:latest .",
+    "docker:tag": "docker tag pioneer/openapi-execution-agent:latest registry.digitalocean.com/pioneer/pioneer/openapi-execution-agent:latest",
+    "docker:push": "docker push registry.digitalocean.com/pioneer/pioneer/openapi-execution-agent:latest",
     "docker:push:all": "npm run docker:build && npm run docker:tag && npm run docker:push"
   },
   "dependencies": {
