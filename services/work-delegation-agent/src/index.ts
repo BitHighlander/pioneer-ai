@@ -269,7 +269,7 @@ let do_work = async function(){
             let credits = await redis.hincrby(task.taskId,'credits',1)
             push_sentence('credits:  '+credits,task.channel)
 
-            if(credits > 50){
+            if(credits > 10){
                 push_sentence("to many attempts! aborting task attempts:"+credits,task.channel)
                 let taskUpdate = await tasksDB.update({taskId:task.taskId},{$set:{aborted:true}})
                 log.info(tag,"taskUpdate: ",taskUpdate)
