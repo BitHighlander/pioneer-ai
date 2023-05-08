@@ -297,6 +297,7 @@ let do_work = async function(){
                         log.info(tag,"step: ",step)
                         if(step.complete == true){
                             log.info(tag,"step already complete! skipping")
+                            return
                         } else {
                             log.info(tag,"step: ",step)
                             push_sentence('Step:  '+step.action+' status: '+step.complete,task.channel)
@@ -350,6 +351,7 @@ let do_work = async function(){
                                 submit_skill_creator(task,step)
                             }
                         }
+                        return
                     } // end steps
                 }
             }
@@ -357,9 +359,6 @@ let do_work = async function(){
         } else {
             log.info(tag,"No tasks found!")
         }
-
-
-
 
     } catch(e) {
         log.error(tag,"e: ",e)
@@ -369,12 +368,13 @@ let do_work = async function(){
         queue.createWork("pioneer:pubkey:ingest:deadletter",work)
         //await sleep(10000)
     }
-    //TODO loop
-    await sleep(5000)
-    //dont stop working even if error
-    do_work()
+    // //TODO loop
+    // await sleep(5000)
+    // //dont stop working even if error
+    // do_work()
 }
 
 //start working on install
 log.info(TAG," worker started! ","")
 do_work()
+setInterval(do_work,5000)

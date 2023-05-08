@@ -153,7 +153,7 @@ const create_view = async function(view:any,message:any,data:any){
                 for(let i = 0; i < view.data.steps.length; i++){
                     let step = view.data.steps[i]
                     let entry = {
-                        name:" ("+ i+1 + ") "+step.name,
+                        name:" ("+ (i+1) + ") "+step.name,
                         value:"type: "+step.type + " input:" + step.input + "  action: " +step.action,
                         inline: true,
                         setColor: '#ff002b'
@@ -199,44 +199,62 @@ subscriber.on('message', async function (channel:string, payloadS:string) {
         if(!payload.responses) throw Error("payload.responses required!")
         // if(!payload.discord) throw Error("payload.discord required!")
 
-        // Find the channel you want to send the message to
-        const channelObj = bot.channels.cache.get(payload.channel);
-        if(channelObj){
-            if(payload.responses.sentences && payload.responses.sentences.length > 0){
-                // Send the message to the channel
-                let message = payload.responses.sentences.toString()
-                log.info(tag,"message: ",message)
-                channelObj.send(message || "empty")
-                    .then(() => {
-                        log.info(`Message sent to channel ${channelObj.name}: ${payload.message}`);
-                    })
-                    .catch(console.error);
-            } else {
-                log.info(tag,"No sentences to send!")
+        if(payload.channel === 'DM'){
+            if(!payload.username) throw Error("payload.username required!")
+            //get user from username
+            // Find the user by username
+            const targetUser = bot.users.cache.find((user: { username: any }) => user.username === payload.username);
+            try {
+                if(payload.responses.sentences){
+                    let message = payload.responses.sentences.toString()
+                    // Send a DM to the user
+                    await targetUser.send(message);
+                    console.log('Message sent successfully!');
+                }
+                //TODO views
+            } catch (error) {
+                console.error('Error sending message:', error);
             }
+        }else{
+            // Find the channel you want to send the message to
+            const channelObj = bot.channels.cache.get(payload.channel);
+            if(channelObj){
+                if(payload.responses.sentences && payload.responses.sentences.length > 0){
+                    // Send the message to the channel
+                    let message = payload.responses.sentences.toString()
+                    log.info(tag,"message: ",message)
+                    channelObj.send(message || "empty")
+                        .then(() => {
+                            log.info(`Message sent to channel ${channelObj.name}: ${payload.message}`);
+                        })
+                        .catch(console.error);
+                } else {
+                    log.info(tag,"No sentences to send!")
+                }
 
-            //views
-            if(payload.responses.views && payload.responses.views.length > 0){
-                for(let i = 0; i < payload.responses.views.length; i++){
-                    let view = payload.responses.views[i]
-                    log.info(tag,"view: ",view)
+                //views
+                if(payload.responses.views && payload.responses.views.length > 0){
+                    for(let i = 0; i < payload.responses.views.length; i++){
+                        let view = payload.responses.views[i]
+                        log.info(tag,"view: ",view)
 
-                    let output = await create_view(view,view.message,view.data)
-                    log.info(tag,"output: ",output)
+                        let output = await create_view(view,view.message,view.data)
+                        log.info(tag,"output: ",output)
 
-                    if(output.embeds.length > 0){
-                        channelObj.send(output)
-                            .then(() => {
-                                log.info(`Message sent to channel ${channelObj.name}: `,output);
-                            })
-                            .catch(console.error);
+                        if(output.embeds.length > 0){
+                            channelObj.send(output)
+                                .then(() => {
+                                    log.info(`Message sent to channel ${channelObj.name}: `,output);
+                                })
+                                .catch(console.error);
+                        }
                     }
+                } else {
+                    log.info(tag,"No views to send!")
                 }
             } else {
-                log.info(tag,"No views to send!")
+                log.info(tag,"channel not found!")
             }
-        } else {
-            log.info(tag,"channel not found!")
         }
 
 
@@ -282,7 +300,7 @@ bot.on('messageCreate', async function (message:any) {
             // log.info("user: ",message.author.id)
             // log.info("channel: ",message.channel.name)
             // log.info("content: ",message.content)
-
+            data.discordName = "DM"
             dm = true
 
             //if message is NOT ccbot
@@ -299,7 +317,6 @@ bot.on('messageCreate', async function (message:any) {
                 data.discordName = guildInfo.name
                 data.discordId = message.guildId
             }
-
 
             //filter by channel
             if(message.channel.name === discordChannel || dm){

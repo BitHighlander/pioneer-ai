@@ -90,6 +90,28 @@ interface Data {
     }
 }
 
+let push_sentence = async function(sentence:string,channel:any, username?:string){
+    let tag = TAG+ " | push_sentence | "
+    try{
+        //send to discord
+        let payload:any = {
+            channel,
+            responses:{
+                sentences:[sentence],
+                views:[]
+            }
+        }
+        if(username){
+            payload['username'] = username
+        }
+        publisher.publish('discord-bridge',JSON.stringify(payload))
+        return true
+    }catch(e){
+        console.error(e)
+    }
+}
+
+
 /***********************************************
  //        lib
  //***********************************************/
@@ -339,6 +361,23 @@ let do_work = async function(){
             let discordInfo = await redis.hgetall(work.discordName)
             log.info(tag,"discordInfo: ",discordInfo)
 
+            //user info
+            let userInfo = await redis.hgetall(work.username)
+            log.info(tag,"userInfo: ",userInfo)
+
+            if(!userInfo || Object.keys(userInfo).length === 0){
+                //create user
+                let newUser = {
+                    username:work.username,
+                    discordId:work.discordId,
+                    discordName:work.discordName,
+                    credits:100
+                }
+                await redis.hmset(work.username,newUser)
+                //send DM to user letting him know he has an account
+
+            }
+
             //check if discord has credits
             let approved = false
             //141052729069010944 coinmaster main
@@ -347,14 +386,17 @@ let do_work = async function(){
                 approved = true
             } else {
                 //debit
-
-                //if success debit
-                //approved = true
-                //if failed to debit
-                redis.lpush(work.queueId,JSON.stringify({
-                    views:[],
-                    sentences:["You must fund your account to continue"],
-                }))
+                let newBalance = await redis.hincrby(work.username,"credits",-1)
+                log.info(tag,"newBalance: ",newBalance)
+                if(newBalance >= 0) {
+                    let message = "new balance: "+newBalance
+                    push_sentence(message,"DM",work.username)
+                    approved = true
+                } else {
+                    //if failed to debit
+                    let message = "out of credits! get more at https://pioneers.dev"
+                    push_sentence(message,"DM",work.username)
+                }
             }
 
             if(approved){
