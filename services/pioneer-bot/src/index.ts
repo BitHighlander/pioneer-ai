@@ -15,6 +15,7 @@ require('dotenv').config({path:"../../../../.env"})
 
 let packageInfo = require("../package.json")
 const TAG = " | "+packageInfo.name+" | "
+const VERSION = packageInfo.version
 
 const log = require('@pioneer-platform/loggerdog')()
 const {subscriber,publisher,redis,redisQueue} = require('@pioneer-platform/default-redis')
@@ -300,7 +301,7 @@ const deliberate_on_input = async function(session:any,data:Data,username:string
 
             if(riveResponse === "ERR: No Reply Matched" && complete !== true) {
                 log.info("No rivescript hit!")
-
+                push_sentence("bot version: "+VERSION+" accepting task", data.channel,data.username)
                 //if account has credits
                 let discord = data.discordName
                 log.info(tag," get info on discord: ",discord)
