@@ -196,7 +196,7 @@ let do_work = async function(){
         let allWork = await queue.count("bots:pioneer-task-queue:ingest")
         log.debug(tag,"allWork: ",allWork)
 
-        work = await queue.getWork("bots:"+BOT_NAME+":ingest", 5)
+        work = await queue.getWork("bots:pioneer-task-queue:ingest", 5)
         if(work){
             log.info("work: ",work)
             if(!work.text) throw Error("100: invalid work! missing text")
