@@ -193,7 +193,7 @@ let do_work = async function(){
     let work
     try{
 
-        let allWork = await queue.count("bots:"+BOT_NAME+":ingest")
+        let allWork = await queue.count("bots:pioneer-task-queue:ingest")
         log.debug(tag,"allWork: ",allWork)
 
         work = await queue.getWork("bots:"+BOT_NAME+":ingest", 5)
