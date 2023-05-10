@@ -58,41 +58,49 @@ const asciichart = require('asciichart');
 const usersDB = connection.get('usersCCbot')
 // usersDB.createIndex({username: 1}, {unique: true})
 usersDB.createIndex({user: 1}, {unique: true})
-
-let rive = require('@pioneer-platform/ccbot-rivescript-brain')
-//onStart
-rive.initialize()
-
-interface Data {
-    query: string
-    // queueId:string
-    // admin:boolean
-    // dm:boolean
-    // user:string
-    // username:string
-    // channel:string
-    // text:string
-}
+const conversations = connection.get("conversations");
+const knowledgeDB = connection.get('knowledge')
+const skillsDB = connection.get('skills')
+const tasksDB = connection.get('tasks')
 
 /***********************************************
  //        lib
  //***********************************************/
 
+/*
+    Higher functions
+        Sensory input
 
-const help = () => {
-    return `
-    ccbot help
-`
-}
+        Listen to discord
 
+        listen to github
+
+        subscribe to twitter
+
+    have a higher purpose
+
+    make decisions
+
+    improve itself
+
+ */
 
 let do_work = async function(){
     let tag = TAG+" | do_work | "
     let work
     try{
+        //intake collected data
+
+        //process and refine data into skills
+
+        //remove spam and low value data
 
         //get data from raw queue
 
+        //review tasks
+        let tasks = await tasksDB.find()
+
+        //review skills
 
     } catch(e) {
         log.error(tag,"e: ",e)

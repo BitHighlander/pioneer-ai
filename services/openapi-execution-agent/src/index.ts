@@ -44,8 +44,6 @@ let configuration = new Configuration({
 const openai = new OpenAIApi(configuration);
 const { exec } = require('child_process');
 
-
-
 const usersDB = connection.get('usersCCbot')
 // usersDB.createIndex({username: 1}, {unique: true})
 usersDB.createIndex({user: 1}, {unique: true})

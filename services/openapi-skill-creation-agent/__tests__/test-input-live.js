@@ -2,16 +2,16 @@ let queue = require("@pioneer-platform/redis-queue")
 
 let step = {
     step: '1',
-    instruction: "use @schneehertz/google-it to create a skill that searchs google and returns json. the command will be google-it --query='*query string goes here*' -o results.json -n this outputs the file in JSON. you need to then read the file to output. the reason its saved is encase it is very large and you will need to chunk it to process it all",
+    instruction: "create a script that will load a webpage and parse the html results and return JSON of only the text fields and summarized text",
     inputCount: 1,
     inputs: [{
         position:1,
-        name:'searchParams',
-        description:"the content of the query",
-        example:"what is a keepkey?"
+        name:'url',
+        description:"the url to load",
+        example:"https://medium.com/artificial-corner/bye-bye-chatgpt-ai-tools-better-than-chatgpt-but-few-people-are-using-them-eac93a3627cc"
     }],
     outputs: {
-        reaults:["an array of search results order by relivance"]
+        results:["an array of search results order by relevance"]
     }
 }
 

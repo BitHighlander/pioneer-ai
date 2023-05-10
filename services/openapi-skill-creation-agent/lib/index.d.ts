@@ -16,6 +16,7 @@ declare let queue: any;
 declare let connection: any;
 declare let wait: any;
 declare let sleep: any;
+declare let ai: any;
 declare const Configuration: any, OpenAIApi: any;
 declare let OPENAI_API_KEY: string | undefined;
 declare let configuration: any;
@@ -65,6 +66,4 @@ declare const save_skill: (skill: Skill) => Promise<{
     description: string;
     keywords: string[];
 }>;
-declare const build_a_script: (output: string, context: string) => Promise<any>;
-declare let validate_gpt_json_output: (output: string, e: any) => Promise<any>;
 declare let do_work: () => Promise<void>;

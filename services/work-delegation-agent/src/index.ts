@@ -32,7 +32,6 @@ const short = require('short-uuid');
 const Tokenizer = require('sentence-tokenizer');
 const tokenizer = new Tokenizer('reddit');
 
-
 let queue = require("@pioneer-platform/redis-queue")
 let connection  = require("@pioneer-platform/default-mongo")
 let wait = require('wait-promise');
@@ -51,9 +50,6 @@ const { exec } = require('child_process');
 //const AWS = require('aws-sdk');
 const asciichart = require('asciichart');
 
-// AWS.config.update({ region: 'eu-west-1' })
-// const dynamodb = new AWS.DynamoDB();
-
 const usersDB = connection.get('usersCCbot')
 // usersDB.createIndex({username: 1}, {unique: true})
 usersDB.createIndex({user: 1}, {unique: true})
@@ -64,7 +60,6 @@ const skillsDB = connection.get('skills')
 const tasksDB = connection.get('tasks')
 let fs = require('fs')
 let ai = require('@pioneer-platform/pioneer-intelligence')
-
 
 interface Data {
     query: string
@@ -91,45 +86,6 @@ interface Data {
 /***********************************************
 //        lib
 //***********************************************/
-
-
-const help = () => {
-    return `
-    ccbot help
-`
-}
-
-//test
-// let find_inputs = async function(inputs:any, task:string){
-//     let tag = TAG+ " | find_inputs | "
-//     try{
-//         let messages = [
-//             {
-//                 role:"system",
-//                 content:"You are a input finder bot. You review a task and provide a solution. the solution is a set of inputs into a executable script. inputs are an array of strings. the strings are the values passed to the exec."
-//             },
-//             {
-//                 role:"system",
-//                 content:'you always output in the following JSON stringifies format { "inputs": string[]}'
-//             },
-//             {
-//                 role:"user",
-//                 content:"inputs the the skill needed: "+JSON.stringify(inputs)+" and the task im trying to solve is "+task+" build a set of inputs that will solve this task"
-//             }
-//         ]
-//
-//         //log.info(tag,"messages: ",messages)
-//         //
-//         let body = {
-//             model: "gpt-4",
-//             messages,
-//         }
-//         let response = await openai.createChatCompletion(body);
-//         return response.data.choices[0].message.content
-//     }catch(e){
-//         console.error(e)
-//     }
-// }
 
 //submit_solve_work
 let submit_solve_work = async function(task:any){
@@ -247,6 +203,32 @@ let push_sentence = async function(sentence:string,channel:any){
         return true
     }catch(e){
         console.error(e)
+    }
+}
+
+/*
+        //Shotgun algo modal
+
+        //get all related skills
+
+        //create 5 new skills
+
+        //perform 5 tasks
+
+        //aggregate 5 results
+
+        //score results
+
+        //pick best result
+
+ */
+let build_work_load = async function(task:any,skills:any){
+    let tag = TAG+" | build_work_load | "
+    try{
+        //
+
+    } catch(e) {
+        log.error(tag,"e: ",e)
     }
 }
 
