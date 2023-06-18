@@ -34,28 +34,7 @@ let discordChannel = process.env['DISCORD_BOT_CHANNEL']
 let PIONEER_DISCORD_BOT_CHANNEL = process.env['PIONEER_DISCORD_BOT_CHANNEL']
 let DISCORD_ADMIN_USERID = process.env['DISCORD_ADMIN_USERID']
 let PIONEER_BOT_NAME = process.env['PIONEER_BOT_NAME'] || 'pioneer'
-const { Configuration, OpenAIApi } = require("openai");
 
-let USE_GPT_4 = true
-let configuration
-if(!process.env.OPENAI_API_KEY_4) USE_GPT_4 = false
-if(USE_GPT_4){
-    log.info("USING USE_GPT_4")
-    let OPENAI_API_KEY = process.env.OPENAI_API_KEY_4
-    if(!OPENAI_API_KEY) throw Error("missing OPENAI_API_KEY")
-   configuration = new Configuration({
-        apiKey: OPENAI_API_KEY,
-    });
-} else {
-    log.info("USING USE_GPT_3")
-    let OPENAI_API_KEY = process.env.OPENAI_API_KEY_3 || process.env.OPENAI_API_KEY
-    if(!OPENAI_API_KEY) throw Error("missing OPENAI_API_KEY")
-    configuration = new Configuration({
-        apiKey: OPENAI_API_KEY,
-    });
-}
-
-const openai = new OpenAIApi(configuration);
 import {v4 as uuidv4} from 'uuid';
 import axios from 'axios';
 

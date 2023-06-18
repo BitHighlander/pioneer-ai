@@ -105,10 +105,10 @@
     dotenv "^8.2.0"
     typescript "^3.9.5"
 
-"@pioneer-platform/pioneer-intelligence@8.1.10":
-  version "8.1.10"
-  resolved "https://registry.yarnpkg.com/@pioneer-platform/pioneer-intelligence/-/pioneer-intelligence-8.1.10.tgz#a4ecd718f3752f7677f547dc3a67fe2324a8495f"
-  integrity sha512-RVK5gcD7wX9pOXNmdXtBYWxPCwisyATSxYct2GNxq2YxLmSuI3JeQ2aZWyB38RrpKurQazHAUonINbZ3cpnyPg==
+"@pioneer-platform/pioneer-intelligence@8.1.16":
+  version "8.1.16"
+  resolved "https://registry.yarnpkg.com/@pioneer-platform/pioneer-intelligence/-/pioneer-intelligence-8.1.16.tgz#b44cdae1825b5cf12f7259c82cebb33647112613"
+  integrity sha512-x95RynXtdUAKo6faZrvClqWQge1AWTrqSF/utMb4Z9l6aK3m7kNm4BrqL4uEoXLQmAIZNWsmIUzR9aAx84qREw==
   dependencies:
     "@pioneer-platform/loggerdog" "^8.1.5"
     "@types/node" "^13.13.14"
@@ -123,6 +123,7 @@
     socket.io-client "^2.3.0"
     ts-node "^8.10.2"
     typescript "^3.9.7"
+    wait-promise "^0.4.1"
 
 "@pioneer-platform/pioneer-rebalance@^6.2.9":
   version "6.2.9"

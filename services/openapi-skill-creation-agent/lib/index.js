@@ -245,6 +245,8 @@ var do_work = function () {
                     context = {
                         API_KEY: process.env["GOOGLE_SEARCH_API_KEY"],
                         OPENAI_API_KEY_4: process.env["OPENAI_API_KEY_4"],
+                        OPENAI_API_KEY_3: process.env["OPENAI_API_KEY_3"],
+                        GH_TOKEN: process.env["GH_TOKEN"],
                     };
                     contextString = JSON.stringify(context);
                     if (typeof (work.work) !== "string")

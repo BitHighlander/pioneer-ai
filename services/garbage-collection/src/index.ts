@@ -61,6 +61,7 @@ usersDB.createIndex({user: 1}, {unique: true})
 const conversations = connection.get("conversations");
 const knowledgeDB = connection.get('knowledge')
 const skillsDB = connection.get('skills')
+const discordRawDB = connection.get('discordRaw')
 const tasksDB = connection.get('tasks')
 
 /***********************************************
@@ -84,6 +85,7 @@ const tasksDB = connection.get('tasks')
     improve itself
 
  */
+let CHUNK_SIZE = 10000
 
 let do_work = async function(){
     let tag = TAG+" | do_work | "
@@ -98,9 +100,23 @@ let do_work = async function(){
         //get data from raw queue
 
         //review tasks
-        let tasks = await tasksDB.find()
+        // let tasks = await tasksDB.find({},{limit:CHUNK_SIZE})
+        let tasks = await discordRawDB.find({},{limit:CHUNK_SIZE})
+        //log.info(tag,"tasks: ",tasks)
 
-        //review skills
+        //bundle content and look for topics
+        let rawData = ""
+        for(let i = 0; i < tasks.length; i++){
+            let text = tasks[i].text
+            if(text)rawData += text
+        }
+        log.info(tag,"rawData: ",rawData)
+        log.info(tag,"rawData: ",rawData.length)
+
+        //chunks of 2k chars
+        //summarize topics
+
+        //if topics convert interests then add to knowledge
 
     } catch(e) {
         log.error(tag,"e: ",e)
@@ -109,7 +125,7 @@ let do_work = async function(){
         //await sleep(10000)
     }
     //dont stop working even if error
-    do_work()
+    //do_work()
 }
 
 //start working on install

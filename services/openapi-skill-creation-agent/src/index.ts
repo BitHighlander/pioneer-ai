@@ -242,6 +242,8 @@ let do_work = async function(){
             let context = {
                 API_KEY:process.env["GOOGLE_SEARCH_API_KEY"],
                 OPENAI_API_KEY_4:process.env["OPENAI_API_KEY_4"],
+                OPENAI_API_KEY_3:process.env["OPENAI_API_KEY_3"],
+                GH_TOKEN:process.env["GH_TOKEN"],
             }
             let contextString = JSON.stringify(context)
             if(typeof(work.work) !== "string") work.work = JSON.stringify(work.work)
@@ -264,7 +266,6 @@ let do_work = async function(){
 
             //release
             // redis.lpush(work.workId,JSON.stringify({success:true,skillId:saveSuccess.skillId}))
-
 
             //submit skill to execution engine
             // let WORKER_NAME = 'pioneer-exec-v1'

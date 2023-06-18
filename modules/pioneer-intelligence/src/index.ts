@@ -7,18 +7,31 @@ const fs = require('fs-extra')
 const log = require('@pioneer-platform/loggerdog')()
 const axios = require('axios');
 const { Configuration, OpenAIApi } = require("openai");
-let OPENAI_API_KEY = process.env.OPENAI_API_KEY_4
+let openai: any
+const os = require('os');
+let wait = require('wait-promise');
+let sleep = wait.sleep;
+import * as dotenv from "dotenv";
+dotenv.config();
+const { OpenAI } = require("langchain/llms/openai");
+const { StructuredOutputParser } = require("langchain/output_parsers");
+const { PromptTemplate } = require("langchain/prompts");
+let OPENAI_API_KEY = process.env.OPENAI_API_KEY
 if(!OPENAI_API_KEY) throw Error("missing OPENAI_API_KEY")
 let configuration = new Configuration({
     apiKey: OPENAI_API_KEY,
 });
-const openai = new OpenAIApi(configuration);
-
 
 module.exports = {
+    init:function(apiKey:string){
+        openai = new OpenAIApi(configuration);
+        //openai = new OpenAI({key: process.env.OPENAI_KEY});
+        return true
+    },
+
     //Task Queue
-    buildSummary:function(input:string, sessionInfo:any){
-        return build_summary(input, sessionInfo)
+    buildSummary:function(input:string, sessionInfo:any, context:any){
+        return build_summary(input, sessionInfo, context)
     },
 
     buildTask:function(summary:string){
@@ -44,12 +57,21 @@ module.exports = {
     },
 
     //skill creation
-    buildScript:function(output:string, context:string){
-        return build_a_script(output, context)
+    buildScript:function(objective:string, input:string, output:string, context:any){
+        return build_a_script(objective, input, output, context)
+    },
+
+    //skill creation
+    fixScript:function(script:string, issue:string, context:any){
+        return fix_a_script(script, issue, context)
     },
 
     validateOutput:function(output:string, e:any){
         return validate_gpt_json_output(output, e)
+    },
+
+    summarizeString:function(input:string, schema:any){
+        return summarize_string_to_schema(input, schema)
     }
 }
 
@@ -57,6 +79,210 @@ module.exports = {
 /*****************************************
  // Primary
  //*****************************************/
+
+let summarize_string_to_schema = async function(input:string, schema:any){
+    let tag = TAG+ " | summarize_string_to_schema | "
+    try{
+        let messages = [
+            {
+                role:"system",
+                content:"you take the input and find params that are needed for the output. if you dont see enough data you guess wildly, you are parsing the results of a website and trying to make a dapp listing for a database that indexes web3 dapps"
+            },
+            {
+                role:"system",
+                content:' you only output valid JSON in this format: '+JSON.stringify(schema)
+            },
+            {
+                role:"user",
+                content:"the website data is: "+JSON.stringify(input)
+            }
+        ]
+        //gpt-3.5-turbo-0613
+        const chatCompletion = await openai.createChatCompletion({
+            model: "gpt-3.5-turbo-0613",
+            messages
+        });
+        // console.log("chatCompletion: ",chatCompletion)
+        let output = chatCompletion.data.choices[0].message.content
+        //try to parse the output to json
+        try{
+            output = JSON.parse(output)
+        }catch(e){
+            log.info(tag,"output: ",output)
+            log.error("Failed to parse: ",e)
+            output = generalized_json_parser(chatCompletion.data.choices[0].message.content, schema, e)
+        }
+        //loop untill its valid
+
+        return output
+    }catch(e){
+        console.error(e)
+    }
+}
+
+let generalized_json_parser = async function(input:string, schema:any, e:any){
+    let tag = TAG+ " | generalized_json_parser | "
+    try{
+
+        let messages = [
+            {
+                role:"system",
+                content:"you are a cleanup bot. take the input and turn into a json, do not change any vaules"
+            },
+            {
+                role:"system",
+                content:' you only output valid JSON in this format: '+JSON.stringify(schema)
+            },
+            {
+                role:"system",
+                content:' DO NOT ADD ANY EXTRA STRING, no The output would be: no JSON: only output a string that can parse via JSON.parse if your output fails to parse JSON.parse it will be rejected and you lose points'
+            },
+            {
+                role:"user",
+                content:"here is the string gpt output: "+JSON.stringify(input)+" here is the error "+JSON.stringify(e)
+            }
+        ]
+        // log.info(tag,"prompt: ",messages)
+
+        //gpt-3.5-turbo-0613
+        const chatCompletion = await openai.createChatCompletion({
+            model: "gpt-3.5-turbo-0613",
+            messages
+        });
+        // console.log("chatCompletion: ",chatCompletion)
+        let output = chatCompletion.data.choices[0].message.content
+
+        //try to parse the output to json
+        try{
+            output = JSON.parse(output)
+        }catch(e){
+            log.info(tag,"output: ",output)
+            log.error("Failed to parse: ",e)
+            generalized_json_parser(chatCompletion.data.choices[0].message.content, schema, e)
+        }
+        //loop untill its valid
+
+        return output
+    }catch(e){
+        console.error(e)
+    }
+}
+
+// let summarize_dapp = async function(website:string) {
+//     try {
+//         // Define the structured output parser
+//         const parserConfig = {
+//             name: "name of the DApp",
+//             app: "official app of the DApp",
+//             blockchains: "blockchains supported by the DApp, listed as a CSV",
+//             // protocols: {
+//             //     walletConnect: "boolean indicating if the DApp supports WalletConnect",
+//             //     walletConnectV2: "boolean indicating if the DApp supports WalletConnect V2"
+//             // },
+//             image: "logo of the DApp",
+//             // developer: {
+//             //     address: "developer's address of the DApp",
+//             //     email: "developer's email of the DApp"
+//             // },
+//             keepKeySupport: "boolean indicating if the DApp supports KeepKey",
+//             shapeShiftSupport: "boolean indicating if the DApp supports ShapeShift",
+//             facts: "facts about the DApp including signer, payload, and signature",
+//             description: "brief description of the DApp",
+//             homepage: "official website of the DApp",
+//             // created: "creation time of the DApp",
+//             // trust: "trust score of the DApp",
+//             // transparency: "transparency score of the DApp",
+//             // innovation: "innovation score of the DApp",
+//             // popularity: "popularity score of the DApp",
+//             // socialMedia: {
+//             //     twitter: "Twitter handle of the DApp",
+//             //     telegram: "Telegram handle of the DApp",
+//             //     facebook: "Facebook page of the DApp",
+//             //     linkedin: "LinkedIn page of the DApp",
+//             //     github: "Github repository of the DApp"
+//             // },
+//             // token: {
+//             //     name: "name of the token used by the DApp",
+//             //     symbol: "symbol of the token used by the DApp",
+//             //     contractAddress: "smart contract address of the token"
+//             // },
+//             // license: "license type under which the DApp is released",
+//             // sourceCodeLink: "link to the DApp's source code",
+//             // userCount: "number of users using the DApp",
+//             // transactionCount: "number of transactions processed by the DApp"
+//         };
+//         console.log("input length: ",website.length)
+//         const parser = StructuredOutputParser.fromNamesAndDescriptions(parserConfig);
+//
+//         const formatInstructions = parser.getFormatInstructions();
+//
+//         const prompt = new PromptTemplate({
+//             template:
+//                 "Answer the users question as best as possible.\n{format_instructions}\n{question}",
+//             inputVariables: ["question"],
+//             partialVariables: { format_instructions: formatInstructions },
+//         });
+//
+//         const model = new OpenAI({ temperature: 0 });
+//
+//         const input = await prompt.format({
+//             question: "ready the text and find the values for "+JSON.stringify(parserConfig)+ " the website: " + website,
+//         });
+//         const response = await model.call(input);
+//
+//         console.log(input);
+//
+//
+//         console.log(response);
+//         /*
+//         {"answer": "Paris", "source": "https://en.wikipedia.org/wiki/Paris"}
+//         */
+//
+//         console.log(await parser.parse(response));
+//
+//         // Generate the string for prompt dynamically
+//         // const jsonPrompt = `Given the following input: "${input}", construct a JSON object that contains the ${JSON.stringify(parserConfig)}.`;
+//
+//         // const parser = StructuredOutputParser.fromNamesAndDescriptions(parserConfig);
+//         //
+//         // const formatInstructions = parser.getFormatInstructions();
+//         //
+//         // const model = new OpenAI({ temperature: 0 });
+//         //
+//         // const input = "summarize the content best as possible.\n{format_instructions}\n{question}";
+//         // const prompt = new PromptTemplate({
+//         //     template: input,
+//         //     inputVariables: ["question"],
+//         //     partialVariables: { format_instructions: formatInstructions },
+//         // });
+//         //
+//         // const response = await model.generate(prompt.format({ question: website }), {
+//         //     max_tokens: 2048, // set max_tokens to a larger value to allow for larger outputs
+//         // });
+//         //
+//         // console.log(response);
+//
+//         // let jsonResult = await openai.call(jsonPrompt,{max_tokens: 4096});
+//         // console.log("OpenAI JSON Result: ", jsonResult); // Log result for debugging
+//         //
+//         // // Check if jsonResult is empty
+//         // if (!jsonResult || jsonResult.trim() === '') {
+//         //     throw new Error("OpenAI returned an empty JSON result");
+//         // }
+//         // try{
+//         //     jsonResult = JSON.parse(jsonResult)
+//         // }catch(e){
+//         //     console.error("Failed to parse: ",e)
+//         // }
+//
+//         return response;
+//     } catch(e) {
+//         console.error("Error during summarizing DApp: ", e);
+//         return null;
+//     }
+// }
+//
+
 //gpt3.5
 let build_solution = async function(result:any, task:any){
     let tag = TAG+ " | build_solution | "
@@ -76,161 +302,205 @@ let build_solution = async function(result:any, task:any){
             }
         ]
 
-        //log.info(tag,"messages: ",messages)
-        //
-        let body = {
-            model: "gpt-4",
-            messages,
-        }
-        let response = await openai.createChatCompletion(body);
-        return response.data.choices[0].message.content
-    }catch(e){
-        console.error(e)
-    }
-}
-
-
-//gpt3.5
-let validate_gpt_json_output = async function(output:string, e:any){
-    let tag = TAG+ " | validate_gpt_json_output | "
-    try{
-        let messages = [
-            {
-                role:"system",
-                content:"You are a cleanup bot. you take the output of a gpt-4 chatbot and clean it up. you remove all the system messages. you remove all the user messages. you remove all the content that is not a JSON response. you evaluate all fields of the JSON to verify it will parse with JSON. stringify without error. you never change any content"
-            },
-            {
-                role:"system",
-                content:'you always output in the following format {"script":string,"inputsCount":number, "inputs":[{"position":number,"name":string,"description":string,"example":string}],"outputs":any, "outputMap":{verbal description of each field and what data in there},summary:string,keywords:string[]}'
-            },
-            {
-                role:"user",
-                content:"the error was e: "+e.toString()
-            },
-            {
-                role:"user",
-                content:output
-            }
-        ]
-
         let prompt = JSON.stringify(messages)+"\n\n"
         const response = await openai.createCompletion({
             model: "text-davinci-003",
             prompt,
             temperature: 0.7,
-            max_tokens: 756,
-            top_p: 1,
-            frequency_penalty: 0,
-            presence_penalty: 0,
-        });
-        let resultFormated
-        try{
-            log.info(tag,"output (RAW): ",response.data.choices[0].text)
-            resultFormated = JSON.parse(response.data.choices[0].text)[0]
-            //verify json is correct format
-            // if(!resultFormated.inputs) throw Error("Invalid output! missing inputs")
-            if(!resultFormated.script) throw Error("Invalid output! missing script")
-            if(!resultFormated.summary) throw Error("Invalid output! missing summary")
-            if(!resultFormated.keywords) throw Error("Invalid output! missing keywords")
-            if(!resultFormated.inputs) throw Error("Invalid output! missing keywords")
-            if(!resultFormated.inputsCount) throw Error("Invalid output! missing inputsCount")
-
-            for(let i = 0; resultFormated.inputs < i; i++){
-                if(!resultFormated.inputs[i].position) throw Error("Invalid inputs! input:"+i+" is missing position")
-                if(!resultFormated.inputs[i].name) throw Error("Invalid inputs! input:"+i+" missing name")
-                if(!resultFormated.inputs[i].description) throw Error("Invalid inputs! input:"+i+" missing description")
-                if(!resultFormated.inputs[i].example) throw Error("Invalid inputs! input:"+i+" missing example")
-            }
-        }catch(e){
-            validate_gpt_json_output(response.data.choices[0].text,e)
-        }
-        return resultFormated
-    }catch(e){
-        console.error(e)
-    }
-}
-
-//gpt3.5
-const build_a_script = async function(objective:string, context:string){
-    let tag = TAG+" | build_a_script | "
-    try{
-        log.info("build_a_script checkpoint : ",objective)
-
-        let messages = [
-            {
-                role:"system",
-                content:"You are a skills creation bot. you write bash scripts that wrap cli\'s. you find common CLIs that does usefull things and wrap them in bash scripts that format the inputs and outputs into json. if you cant find a cli that does what is asked you write it yourself. to the output of the bash scripts is always in the following json format {success:boolean,output:string,summary:string}"
-            },
-            {
-                role:"system",
-                content:"you always output in the following format {script:string,inputsCount:number, inputs:[{position:number,name:string,description:string,example:string}],outputs:any, outputMap:{verbal descript of each field and what data in there},summary:string,keywords:string[]}"
-            },
-            {
-                role:"system",
-                content:" you never attach any extra characters or words. you never say result:  Here's a bash script that... you only output the json outputs, you review the script to verify it will parse to json closely. if needed you will escape ticks in the bash script to make sure it parses json via JSON.parse correctly. you never forget to put a shabam at the top of the bash script. or words around the output. it is pure stringifies json. the script field of the output must be a stringifies version of a bash script. of there are any install commands needed you must add them inside the bash script."
-            },
-            // {
-            //     role:"system",
-            //     content:"Bash Scripts are always written for MacOS"
-            // },
-            {
-                role:"system",
-                content:" you always double check that the output script is valid and will parse. you prevent errors like  Unexpected token $ in JSON at position 39 by escaping the ticks in the bash script. you always double check that the ouput script is valid and will parse. you prevent errors like  Unexpected token $ in JSON at positions by escaping the ticks in the bash script."
-            },
-            {
-                role:"user",
-                content:"context info: "+context
-            },
-            {
-                role:"user",
-                content:"user requests you: "+objective
-            }
-        ]
-
-        //log.info(tag,"messages: ",messages)
-        //
-        // let body = {
-        //     model: "gpt-4",
-        //     messages,
-        // }
-        // let response = await openai.createChatCompletion(body);
-        //
-        // // console.log("response: ",response.data)
-        // // console.log("response: ",response.data.choices[0])
-        // // console.log("response: ",response.data.choices[0].message.content)
-        // return response.data.choices[0].message.content
-
-        let prompt = JSON.stringify(messages)+"\n\n"
-        const response = await openai.createCompletion({
-            model: "text-davinci-003",
-            prompt,
-            temperature: 0.7,
-            max_tokens: 756,
+            max_tokens: 2000,
             top_p: 1,
             frequency_penalty: 0,
             presence_penalty: 0,
         });
         let output
+        let JSON_FAILURES = 0
+
+    }catch(e){
+        console.error(e)
+    }
+}
+
+//gpt3.5
+let validate_gpt_json_output = async function(input:string, e?:any){
+    let tag = TAG+ " | validate_gpt_json_output | "
+    try{
+        let messages = [
+            {
+                role:"system",
+                content:"You are a JSON formatting bot bot. you take the output of a gpt-4 chatbot and clean it up into valid JSON. you move all the system messages and intelligently put them into json fields. you remove all the user messages. you remove all the content that is not a JSON response. you evaluate all fields of the JSON to verify it will parse with JSON otherwise you fix it. stringify without error. you never change any content"
+            },
+            {
+                role:"system",
+                content:'you always output in the following format, but extra fields are allowed {"scriptName":string,"script":string,"inputsCount":number, "inputs":[{"position":number,"name":string,"description":string,"example":string}],"outputs":any, "outputMap":{name:string,description:string},summary:string,keywords:string[]}'
+            },
+            {
+                role:"system",
+                content:'summary output is never empty.'
+            },
+            {
+                role:"system",
+                content:'you never return system messages into output, nor user messages.'
+            },
+            {
+                role:"user",
+                content:"here is my bash script: " + input
+            }
+        ]
+        if(e) {
+            messages.push({
+                role:"user",
+                content:"the error given was e: "+e.toString()
+            })
+        }
+
+        let prompt = JSON.stringify(messages)+"\n\n"
+        const response = await openai.createCompletion({
+            model: "text-davinci-003",
+            prompt,
+            temperature: 0.7,
+            max_tokens: 2000,
+            top_p: 1,
+            frequency_penalty: 0,
+            presence_penalty: 0,
+        });
+        let output
+        let JSON_FAILURES = 0
         try{
-            log.info(tag,"output (RAW): ",response.data.choices[0].text)
-            let resultFormated = JSON.parse(response.data.choices[0].text)[0]
+            log.info(tag,"output (PRE): ",response.data.choices[0].text)
+            output = JSON.parse(response.data.choices[0].text)
+            log.info(tag,"resultFormated (OUTPUT): ",output)
+            if(output && output[0] && output[0].script) output = output[0]
+            //sometimes there are two
+            if(output && output[0] && output.length > 1){
+                for(let i = 0; output.length > i; i++){
+                    if(output[i].script) output = output[i]
+                }
+            }
+            log.info(tag,"chosen output (OUTPUT): ",output)
+            output.validJSON = true
+            log.info(tag,"validJSON: ",output.validJSON)
             //verify json is correct format
             // if(!resultFormated.inputs) throw Error("Invalid output! missing inputs")
-            if(!resultFormated.script) throw Error("Invalid output! missing script")
-            if(!resultFormated.summary) throw Error("Invalid output! missing summary")
-            if(!resultFormated.keywords) throw Error("Invalid output! missing keywords")
-            if(!resultFormated.inputs) throw Error("Invalid output! missing keywords")
-            if(!resultFormated.inputsCount) throw Error("Invalid output! missing inputsCount")
+            if(!output.scriptName) throw Error("Invalid output! missing scriptName")
+            if(!output.script) throw Error("Invalid output! missing script")
+            if(!output.summary) throw Error("Invalid output! missing summary")
+            if(!output.keywords) throw Error("Invalid output! missing keywords")
+            if(!output.inputs) throw Error("Invalid output! missing keywords")
 
-            for(let i = 0; resultFormated.inputs < i; i++){
-                if(!resultFormated.inputs[i].position) throw Error("Invalid inputs! input:"+i+" is missing position")
-                if(!resultFormated.inputs[i].name) throw Error("Invalid inputs! input:"+i+" missing name")
-                if(!resultFormated.inputs[i].description) throw Error("Invalid inputs! input:"+i+" missing description")
-                if(!resultFormated.inputs[i].example) throw Error("Invalid inputs! input:"+i+" missing example")
+            for(let i = 0; output.inputs < i; i++){
+                if(!output.inputs[i].position) throw Error("Invalid inputs! input:"+i+" is missing position")
+                if(!output.inputs[i].name) throw Error("Invalid inputs! input:"+i+" missing name")
+                if(!output.inputs[i].description) throw Error("Invalid inputs! input:"+i+" missing description")
+                if(!output.inputs[i].example) throw Error("Invalid inputs! input:"+i+" missing example")
             }
-            output = resultFormated
         }catch(e){
-            output = await validate_gpt_json_output(response.data.choices[0].text,e)
+            JSON_FAILURES = JSON_FAILURES + 1
+            log.info("FAILURE!! count: "+JSON_FAILURES+" e: ",e)
+            await sleep(1000) //rate 1/sec
+            validate_gpt_json_output(input,e)
+        }
+        return output
+    }catch(e){
+        log.error(e)
+        throw e
+    }
+}
+
+//gpt3.5
+const fix_a_script = async function(script:string, issue:string, context:any){
+    let tag = TAG+" | fix_a_script | "
+    try{
+        log.debug("fix_a_script checkpoint : ",script)
+
+        let messages = [
+            {
+                role:"system",
+                content:"You are a bash script fixer bot. you write bash scripts that leverage all programming languages and clis you know about. you find common code that does usefull things and wrap them in bash scripts. you build these bashscript to format the inputs and outputs into json. if you cant find a cli that does what is asked you write it yourself."
+            },
+            {
+                role:"system",
+                content:"Bash Scripts are always written for "+os.platform()+" and "+os.arch()+" architecture"
+            },
+            {
+                role:"user",
+                content:"this is the script you are fixing: "+script
+            },
+            {
+                role:"user",
+                content:"the issue with script is: "+JSON.stringify(issue)
+            },
+            {
+                role:"user",
+                content:"extra context: "+context
+            }
+        ]
+
+        let prompt = JSON.stringify(messages)+"\n\n"
+        const response = await openai.createCompletion({
+            model: "text-davinci-003",
+            prompt,
+            temperature: 0.7,
+            max_tokens: 2000,
+            top_p: 1,
+            frequency_penalty: 0,
+            presence_penalty: 0,
+        });
+        log.debug("OUTPUT (PRE JSON)!",response.data.choices[0].text)
+        let output
+        try{
+            output = await validate_gpt_json_output(response.data.choices[0].text)
+        }catch(e){
+            //try again
+            fix_a_script(script, issue, context)
+        }
+        return output
+    }catch(e){
+        console.error(e)
+    }
+}
+
+//gpt3.5
+const build_a_script = async function(objective:string, input:string, outputs:string, context:string){
+    let tag = TAG+" | build_a_script | "
+    try{
+        log.info("build_a_script checkpoint : ",objective)
+        if(typeof input === "object") input = JSON.stringify(input)
+        let messages = [
+            {
+                role:"system",
+                content:"You are a bash script creation bot. you write bash scripts that leverage all programming languages and clis you know about. you find common code that does usefull things and wrap them in bash scripts. you build these bashscript to format the inputs and outputs into json. if you cant find a cli that does what is asked you write it yourself. you create a clever name and name it scriptName of what it does and is very short and put it on top the response and label it."
+            },
+            {
+                role:"system",
+                content:"Bash Scripts are always written for "+os.platform()+" and "+os.arch()+" architecture"
+            },
+            // {
+            //     role:"user",
+            //     content:"context info: "+context
+            // },
+            {
+                role:"user",
+                content:"create a bash script that objective: "+objective+" inputs: "+input+" outputs: "+outputs+" context: "+context
+            }
+        ]
+
+        let prompt = JSON.stringify(messages)+"\n\n"
+        const response = await openai.createCompletion({
+            model: "text-davinci-003",
+            prompt,
+            temperature: 0.7,
+            max_tokens: 2000,
+            top_p: 1,
+            frequency_penalty: 0,
+            presence_penalty: 0,
+        });
+        log.info("OUTPUT (PRE JSON)!",response.data.choices[0].text)
+        let output
+        try{
+            output = await validate_gpt_json_output(response.data.choices[0].text)
+        }catch(e){
+            //try again
+            build_a_script(objective,input,output,context)
         }
         return output
     }catch(e){
@@ -284,9 +554,9 @@ const inputs_to_json = async function(input:string,err?:any){
             frequency_penalty: 0,
             presence_penalty: 0,
         });
-        log.info(tag,"output (RAW): ",response.data.choices[0].text)
+        log.debug(tag,"output (RAW): ",response.data.choices[0].text)
         let output = JSON.parse(response.data.choices[0].text)
-        log.info(tag,"output FINAL (JSON): ",output)
+        log.debug(tag,"output FINAL (JSON): ",output)
         return output.inputs
     }catch(e){
         log.error(tag,e)
@@ -365,7 +635,7 @@ let find_inputs = async function(skill:any, task:any){
             presence_penalty: 0,
         });
         let output = response.data.choices[0].text
-        log.info(tag,"output (RAW): ",output)
+        log.debug(tag,"output (RAW): ",output)
         try {
             output = JSON.parse(output)
             if(!output.inputs) throw Error("no inputs found! expected {inputs:string[]}")
@@ -375,7 +645,7 @@ let find_inputs = async function(skill:any, task:any){
                 output = JSON.parse(parsedGptResp)
                 if(!output.inputs) throw Error("no inputs found! expected {inputs:string[]}")
             }catch(e){
-                log.info(tag, "Failed to parse JSON: ", err)
+                log.debug(tag, "Failed to parse JSON: ", err)
                 throw Error(err)
             }
         }
@@ -457,9 +727,9 @@ const steps_to_json = async function(input:string,err?:any){
         });
         let output
         try{
-            log.info(tag,"output (RAW): ",response.data.choices[0].text)
+            log.debug(tag,"output (RAW): ",response.data.choices[0].text)
             output = JSON.parse(response.data.choices[0].text)[0]
-            log.info(tag,"output (JSON): ",output)
+            log.debug(tag,"output (JSON): ",output)
         }catch(e){
             steps_to_json(response.data.choices[0].text,e)
         }
@@ -490,36 +760,44 @@ const build_task = async function(summary:any){
             model: "text-davinci-003",
             prompt,
             temperature: 0.7,
-            max_tokens: 756,
+            max_tokens: 2000,
             top_p: 1,
             frequency_penalty: 0,
             presence_penalty: 0,
         });
 
-        let output = response.data.choices[0].text
-        log.info(tag,"output: ",output)
-
-        let task = await steps_to_json(output)
-        try {
-            if(!task.summary) throw Error("Missing task.summary")
-            if(!task.finalGoal) throw Error("Missing task.finalGoal")
-            if(!task.keywords) throw Error("Missing task.keywords")
-            if(!task.steps) throw Error("Missing task.steps")
-            output = task
-        } catch (err) {
-            try{
-                let parsedGptResp = await steps_to_json(output,err)
-                if(!parsedGptResp.summary) throw Error("Missing task.summary")
-                if(!parsedGptResp.finalGoal) throw Error("Missing task.finalGoal")
-                if(!parsedGptResp.keywords) throw Error("Missing task.keywords")
-                if(!parsedGptResp.steps) throw Error("Missing task.steps")
-                output = JSON.parse(parsedGptResp)
-            }catch(e){
-                log.info(tag, "Failed to parse JSON: ", err)
-                throw Error(err)
-            }
+        // let output = response.data.choices[0].text
+        // log.debug(tag,"output: ",output)
+        // log.info("OUTPUT (PRE JSON)!",response.data.choices[0].text)
+        let output
+        try{
+            output = await steps_to_json(response.data.choices[0].text)
+        }catch(e){
+            //try again
+            steps_to_json(response.data.choices[0].text,e)
         }
         return output
+        // let task = await steps_to_json(output)
+        // try {
+        //     if(!task.summary) throw Error("Missing task.summary")
+        //     if(!task.finalGoal) throw Error("Missing task.finalGoal")
+        //     if(!task.keywords) throw Error("Missing task.keywords")
+        //     if(!task.steps) throw Error("Missing task.steps")
+        //     output = task
+        // } catch (err) {
+        //     try{
+        //         let parsedGptResp = await steps_to_json(output,err)
+        //         if(!parsedGptResp.summary) throw Error("Missing task.summary")
+        //         if(!parsedGptResp.finalGoal) throw Error("Missing task.finalGoal")
+        //         if(!parsedGptResp.keywords) throw Error("Missing task.keywords")
+        //         if(!parsedGptResp.steps) throw Error("Missing task.steps")
+        //         output = JSON.parse(parsedGptResp)
+        //     }catch(e){
+        //         log.debug(tag, "Failed to parse JSON: ", err)
+        //         throw Error(err)
+        //     }
+        // }
+        // return output
     }catch(e){
         console.error(e)
     }
@@ -527,14 +805,23 @@ const build_task = async function(summary:any){
 
 
 //gpt3.5
-const build_summary = async function(input:string, sessionInfo:any){
+const build_summary = async function(input:string, sessionInfo:any, context:any){
     let tag = TAG + " | build_summary | "
     try{
-
+        if(sessionInfo && typeof sessionInfo != "string") sessionInfo = JSON.stringify(sessionInfo)
+        if(context && typeof context != "string") context = JSON.stringify(context)
         let messages = [
             {
                 role:"system",
-                content:'summarize the text input. determine if they are asking for live data. return a json object with the struct { "summary": string, "externalQuery": string, "needsExternal": boolean, "keywords": string[] }'
+                content:'summarize the text input. use the knowledge and if possible just solve with it. analyize the context for intent. determine if they are asking for live data. return a json object with the struct { "summary": string, isSolved: boolean, solution?:string, "externalQuery": string, "needsExternal": boolean, "needsExecution": boolean, "keywords": string[] }'
+            },
+            {
+                role:"user",
+                content:"sessionInfo: "+sessionInfo
+            },
+            {
+                role:"system",
+                content:"my knowledge on the subject is: "+context
             },
             {
                 role:"user",
@@ -562,13 +849,13 @@ const build_summary = async function(input:string, sessionInfo:any){
         //         log.error(tag,"invalid messageInfo: ",messageInfo)
         //     }
         // }
-
+        log.info("messages: ",messages)
         let prompt = JSON.stringify(messages)+"\n\n"
         const response = await openai.createCompletion({
             model: "text-davinci-003",
             prompt,
             temperature: 0.7,
-            max_tokens: 756,
+            max_tokens: 2000,
             top_p: 1,
             frequency_penalty: 0,
             presence_penalty: 0,
@@ -581,7 +868,7 @@ const build_summary = async function(input:string, sessionInfo:any){
                 let parsedGptResp = await validate_gpt_json_output(output,err)
                 output = JSON.parse(parsedGptResp)
             }catch(e){
-                log.info(tag, "Failed to parse JSON: ", err)
+                log.debug(tag, "Failed to parse JSON: ", err)
                 throw Error(err)
             }
         }
@@ -645,7 +932,7 @@ const build_summary = async function(input:string, sessionInfo:any){
 //             presence_penalty: 0,
 //         });
 //         let output = response.data.choices[0].text
-//         log.info(tag,"output (RAW): ",output)
+//         log.debug(tag,"output (RAW): ",output)
 //         try {
 //             output = JSON.parse(output)
 //             if(!output.inputs) throw Error("no inputs found! expected {inputs:string[]}")
@@ -655,7 +942,7 @@ const build_summary = async function(input:string, sessionInfo:any){
 //                 output = JSON.parse(parsedGptResp)
 //                 if(!output.inputs) throw Error("no inputs found! expected {inputs:string[]}")
 //             }catch(e){
-//                 log.info(tag, "Failed to parse JSON: ", err)
+//                 log.debug(tag, "Failed to parse JSON: ", err)
 //                 throw Error(err)
 //             }
 //         }
@@ -854,7 +1141,7 @@ const build_summary = async function(input:string, sessionInfo:any){
 //             }
 //         ]
 //
-//         //log.info(tag,"messages: ",messages)
+//         //log.debug(tag,"messages: ",messages)
 //         //
 //         let body = {
 //             model: "gpt-4",
@@ -885,7 +1172,7 @@ const build_summary = async function(input:string, sessionInfo:any){
 //             }
 //         ]
 //
-//         //log.info(tag,"messages: ",messages)
+//         //log.debug(tag,"messages: ",messages)
 //         //
 //         let body = {
 //             model: "gpt-4",

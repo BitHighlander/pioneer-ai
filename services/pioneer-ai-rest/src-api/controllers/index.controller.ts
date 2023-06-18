@@ -9,6 +9,12 @@ const pjson = require('../../package.json');
 const log = require('@bithighlander/loggerdog-client')()
 const {subscriber, publisher, redis} = require('@pioneer-platform/default-redis')
 
+let connection  = require("@pioneer-platform/default-mongo")
+const knowledgeDB = connection.get('knowledge')
+const tasksDB = connection.get('tasks')
+const rivescriptDB = connection.get('rivescriptRaw')
+const skillsDB = connection.get('skills')
+const credentialsDB = connection.get('credentials')
 
 //rest-ts
 import { Body, Controller, Get, Post, Route, Tags, SuccessResponse, Query, Request, Response, Header } from 'tsoa';
@@ -96,18 +102,146 @@ export class IndexController extends Controller {
         }
     }
 
+
+    /*
+        CRUD on skills
+     */
+    @Get('/skills')
+    public async skills() {
+        let tag = TAG + " | user | "
+        try{
+
+            let status:any = await skillsDB.find()
+
+            return(status)
+        }catch(e){
+            let errorResp:Error = {
+                success:false,
+                tag,
+                e
+            }
+            log.error(tag,"e: ",{errorResp})
+            throw new ApiError("error",503,"error: "+e.toString());
+        }
+    }
+
+    // Create a skill
+    @Post('/skills')
+    public async createSkill(@Body() skill: any) {
+        let tag = TAG + " | createSkill | "
+        try {
+            let createdSkill = await skillsDB.create(skill)
+            return createdSkill
+        } catch(e) {
+            let errorResp:Error = {
+                success: false,
+                tag,
+                e
+            }
+            log.error(tag,"e: ",{errorResp})
+            throw new ApiError("error", 503, "error: "+e.toString());
+        }
+    }
+
+    // Update a skill
+    @Post('/skills/:id')
+    public async updateSkill(id: string, @Body() skill: any) {
+        let tag = TAG + " | updateSkill | "
+        try {
+            let updatedSkill = await skillsDB.update({ _id: id }, skill)
+            return updatedSkill
+        } catch(e) {
+            let errorResp:Error = {
+                success: false,
+                tag,
+                e
+            }
+            log.error(tag,"e: ",{errorResp})
+            throw new ApiError("error", 503, "error: "+e.toString());
+        }
+    }
+
+// Delete a skill
+    @Post('/skills/:id/delete')
+    public async deleteSkill(id: string) {
+        let tag = TAG + " | deleteSkill | "
+        try {
+            let deletedSkill = await skillsDB.remove({ _id: id })
+            return deletedSkill
+        } catch(e) {
+            let errorResp:Error = {
+                success: false,
+                tag,
+                e
+            }
+            log.error(tag,"e: ",{errorResp})
+            throw new ApiError("error", 503, "error: "+e.toString());
+        }
+    }
+
+
+
+
+    /*
+        Get Tasks
+     */
+    @Get('/tasks')
+    public async tasks() {
+        let tag = TAG + " | user | "
+        try{
+
+            let status:any = await tasksDB.find()
+
+            return(status)
+        }catch(e){
+            let errorResp:Error = {
+                success:false,
+                tag,
+                e
+            }
+            log.error(tag,"e: ",{errorResp})
+            throw new ApiError("error",503,"error: "+e.toString());
+        }
+    }
+
+    /*
+        Get Solutions
+     */
+    @Get('/solutions')
+    public async solutions() {
+        let tag = TAG + " | user | "
+        try{
+
+            let status:any = await knowledgeDB.find()
+
+            return(status)
+        }catch(e){
+            let errorResp:Error = {
+                success:false,
+                tag,
+                e
+            }
+            log.error(tag,"e: ",{errorResp})
+            throw new ApiError("error",503,"error: "+e.toString());
+        }
+    }
+
+
+
+
+
+
     /*
         Create user
+     */
+
+    /*
+        generate deposit address
 
      */
 
     /*
-        generate deposit split
-
-     */
-
-    /*
-        check deposit split
+        check deposit for payments
 
      */
 }

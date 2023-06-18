@@ -2,16 +2,16 @@ let queue = require("@pioneer-platform/redis-queue")
 
 let step = {
     step: '1',
-    instruction: "create a script that will load a webpage and parse the html results and return JSON of only the text fields and summarized text",
+    instruction: "create a script that will clone a repo",
     inputCount: 1,
     inputs: [{
         position:1,
         name:'url',
         description:"the url to load",
-        example:"https://medium.com/artificial-corner/bye-bye-chatgpt-ai-tools-better-than-chatgpt-but-few-people-are-using-them-eac93a3627cc"
+        example:"https://github.com/BitHighlander/pioneer-ai"
     }],
     outputs: {
-        results:["an array of search results order by relevance"]
+        results:["true"]
     }
 }
 

@@ -146,9 +146,10 @@ let run_command = async function(skillId: string, inputs: any) {
                 })
             }
         } catch(e){
+            log.error(tag,"error: ",e)
             messages.push({
                 role: "user",
-                content: command
+                content: "error: ",e
             })
         }
 

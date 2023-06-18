@@ -20,6 +20,9 @@ var __decorate = (this && this.__decorate) || function (decorators, target, key,
     else for (var i = decorators.length - 1; i >= 0; i--) if (d = decorators[i]) r = (c < 3 ? d(r) : c > 3 ? d(target, key, r) : d(target, key)) || r;
     return c > 3 && r && Object.defineProperty(target, key, r), r;
 };
+var __param = (this && this.__param) || function (paramIndex, decorator) {
+    return function (target, key) { decorator(target, key, paramIndex); }
+};
 var __awaiter = (this && this.__awaiter) || function (thisArg, _arguments, P, generator) {
     function adopt(value) { return value instanceof P ? value : new P(function (resolve) { resolve(value); }); }
     return new (P || (P = Promise))(function (resolve, reject) {
@@ -67,6 +70,12 @@ var TAG = ' | API | ';
 var pjson = require('../../package.json');
 var log = require('@bithighlander/loggerdog-client')();
 var _a = require('@pioneer-platform/default-redis'), subscriber = _a.subscriber, publisher = _a.publisher, redis = _a.redis;
+var connection = require("@pioneer-platform/default-mongo");
+var knowledgeDB = connection.get('knowledge');
+var tasksDB = connection.get('tasks');
+var rivescriptDB = connection.get('rivescriptRaw');
+var skillsDB = connection.get('skills');
+var credentialsDB = connection.get('credentials');
 //rest-ts
 var tsoa_1 = require("tsoa");
 var ApiError = /** @class */ (function (_super) {
@@ -157,12 +166,212 @@ var IndexController = /** @class */ (function (_super) {
             });
         });
     };
+    /*
+        CRUD on skills
+     */
+    IndexController.prototype.skills = function () {
+        return __awaiter(this, void 0, void 0, function () {
+            var tag, status_3, e_3, errorResp;
+            return __generator(this, function (_a) {
+                switch (_a.label) {
+                    case 0:
+                        tag = TAG + " | user | ";
+                        _a.label = 1;
+                    case 1:
+                        _a.trys.push([1, 3, , 4]);
+                        return [4 /*yield*/, skillsDB.find()];
+                    case 2:
+                        status_3 = _a.sent();
+                        return [2 /*return*/, (status_3)];
+                    case 3:
+                        e_3 = _a.sent();
+                        errorResp = {
+                            success: false,
+                            tag: tag,
+                            e: e_3
+                        };
+                        log.error(tag, "e: ", { errorResp: errorResp });
+                        throw new ApiError("error", 503, "error: " + e_3.toString());
+                    case 4: return [2 /*return*/];
+                }
+            });
+        });
+    };
+    // Create a skill
+    IndexController.prototype.createSkill = function (skill) {
+        return __awaiter(this, void 0, void 0, function () {
+            var tag, createdSkill, e_4, errorResp;
+            return __generator(this, function (_a) {
+                switch (_a.label) {
+                    case 0:
+                        tag = TAG + " | createSkill | ";
+                        _a.label = 1;
+                    case 1:
+                        _a.trys.push([1, 3, , 4]);
+                        return [4 /*yield*/, skillsDB.create(skill)];
+                    case 2:
+                        createdSkill = _a.sent();
+                        return [2 /*return*/, createdSkill];
+                    case 3:
+                        e_4 = _a.sent();
+                        errorResp = {
+                            success: false,
+                            tag: tag,
+                            e: e_4
+                        };
+                        log.error(tag, "e: ", { errorResp: errorResp });
+                        throw new ApiError("error", 503, "error: " + e_4.toString());
+                    case 4: return [2 /*return*/];
+                }
+            });
+        });
+    };
+    // Update a skill
+    IndexController.prototype.updateSkill = function (id, skill) {
+        return __awaiter(this, void 0, void 0, function () {
+            var tag, updatedSkill, e_5, errorResp;
+            return __generator(this, function (_a) {
+                switch (_a.label) {
+                    case 0:
+                        tag = TAG + " | updateSkill | ";
+                        _a.label = 1;
+                    case 1:
+                        _a.trys.push([1, 3, , 4]);
+                        return [4 /*yield*/, skillsDB.update({ _id: id }, skill)];
+                    case 2:
+                        updatedSkill = _a.sent();
+                        return [2 /*return*/, updatedSkill];
+                    case 3:
+                        e_5 = _a.sent();
+                        errorResp = {
+                            success: false,
+                            tag: tag,
+                            e: e_5
+                        };
+                        log.error(tag, "e: ", { errorResp: errorResp });
+                        throw new ApiError("error", 503, "error: " + e_5.toString());
+                    case 4: return [2 /*return*/];
+                }
+            });
+        });
+    };
+    // Delete a skill
+    IndexController.prototype.deleteSkill = function (id) {
+        return __awaiter(this, void 0, void 0, function () {
+            var tag, deletedSkill, e_6, errorResp;
+            return __generator(this, function (_a) {
+                switch (_a.label) {
+                    case 0:
+                        tag = TAG + " | deleteSkill | ";
+                        _a.label = 1;
+                    case 1:
+                        _a.trys.push([1, 3, , 4]);
+                        return [4 /*yield*/, skillsDB.remove({ _id: id })];
+                    case 2:
+                        deletedSkill = _a.sent();
+                        return [2 /*return*/, deletedSkill];
+                    case 3:
+                        e_6 = _a.sent();
+                        errorResp = {
+                            success: false,
+                            tag: tag,
+                            e: e_6
+                        };
+                        log.error(tag, "e: ", { errorResp: errorResp });
+                        throw new ApiError("error", 503, "error: " + e_6.toString());
+                    case 4: return [2 /*return*/];
+                }
+            });
+        });
+    };
+    /*
+        Get Tasks
+     */
+    IndexController.prototype.tasks = function () {
+        return __awaiter(this, void 0, void 0, function () {
+            var tag, status_4, e_7, errorResp;
+            return __generator(this, function (_a) {
+                switch (_a.label) {
+                    case 0:
+                        tag = TAG + " | user | ";
+                        _a.label = 1;
+                    case 1:
+                        _a.trys.push([1, 3, , 4]);
+                        return [4 /*yield*/, tasksDB.find()];
+                    case 2:
+                        status_4 = _a.sent();
+                        return [2 /*return*/, (status_4)];
+                    case 3:
+                        e_7 = _a.sent();
+                        errorResp = {
+                            success: false,
+                            tag: tag,
+                            e: e_7
+                        };
+                        log.error(tag, "e: ", { errorResp: errorResp });
+                        throw new ApiError("error", 503, "error: " + e_7.toString());
+                    case 4: return [2 /*return*/];
+                }
+            });
+        });
+    };
+    /*
+        Get Solutions
+     */
+    IndexController.prototype.solutions = function () {
+        return __awaiter(this, void 0, void 0, function () {
+            var tag, status_5, e_8, errorResp;
+            return __generator(this, function (_a) {
+                switch (_a.label) {
+                    case 0:
+                        tag = TAG + " | user | ";
+                        _a.label = 1;
+                    case 1:
+                        _a.trys.push([1, 3, , 4]);
+                        return [4 /*yield*/, knowledgeDB.find()];
+                    case 2:
+                        status_5 = _a.sent();
+                        return [2 /*return*/, (status_5)];
+                    case 3:
+                        e_8 = _a.sent();
+                        errorResp = {
+                            success: false,
+                            tag: tag,
+                            e: e_8
+                        };
+                        log.error(tag, "e: ", { errorResp: errorResp });
+                        throw new ApiError("error", 503, "error: " + e_8.toString());
+                    case 4: return [2 /*return*/];
+                }
+            });
+        });
+    };
     __decorate([
         (0, tsoa_1.Get)('/health')
     ], IndexController.prototype, "health");
     __decorate([
         (0, tsoa_1.Get)('/user/address/{address}')
     ], IndexController.prototype, "user");
+    __decorate([
+        (0, tsoa_1.Get)('/skills')
+    ], IndexController.prototype, "skills");
+    __decorate([
+        (0, tsoa_1.Post)('/skills'),
+        __param(0, (0, tsoa_1.Body)())
+    ], IndexController.prototype, "createSkill");
+    __decorate([
+        (0, tsoa_1.Post)('/skills/:id'),
+        __param(1, (0, tsoa_1.Body)())
+    ], IndexController.prototype, "updateSkill");
+    __decorate([
+        (0, tsoa_1.Post)('/skills/:id/delete')
+    ], IndexController.prototype, "deleteSkill");
+    __decorate([
+        (0, tsoa_1.Get)('/tasks')
+    ], IndexController.prototype, "tasks");
+    __decorate([
+        (0, tsoa_1.Get)('/solutions')
+    ], IndexController.prototype, "solutions");
     IndexController = __decorate([
         (0, tsoa_1.Route)('')
     ], IndexController);
