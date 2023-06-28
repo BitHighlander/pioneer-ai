@@ -72,6 +72,11 @@ module.exports = {
 
     summarizeString:function(input:string, schema:any){
         return summarize_string_to_schema(input, schema)
+    },
+
+    //analyze data
+    analyzeData:function(input:any, objective:string, schema:any){
+        return analyize_input(input, objective, schema)
     }
 }
 
@@ -79,6 +84,47 @@ module.exports = {
 /*****************************************
  // Primary
  //*****************************************/
+
+let analyize_input = async function(input:any, objective:string, schema:any){
+    let tag = TAG+ " | summarize_string_to_schema | "
+    try{
+        let messages = [
+            {
+                role:"system",
+                content:objective
+            },
+            {
+                role:"system",
+                content:' you only output valid JSON in this format: '+JSON.stringify(schema)
+            },
+            {
+                role:"user",
+                content:"the data is: "+JSON.stringify(input)
+            }
+        ]
+        //gpt-3.5-turbo-0613
+        const chatCompletion = await openai.createChatCompletion({
+            model: "gpt-3.5-turbo-0613",
+            messages
+        });
+        // console.log("chatCompletion: ",chatCompletion)
+        let output = chatCompletion.data.choices[0].message.content
+        //try to parse the output to json
+        try{
+            output = JSON.parse(output)
+        }catch(e){
+            log.info(tag,"output: ",output)
+            log.error("Failed to parse: ",e)
+            output = generalized_json_parser(chatCompletion.data.choices[0].message.content, schema, e)
+        }
+        //loop untill its valid
+
+        return output
+    }catch(e){
+        console.error(e)
+    }
+}
+
 
 let summarize_string_to_schema = async function(input:string, schema:any){
     let tag = TAG+ " | summarize_string_to_schema | "

@@ -38,7 +38,7 @@ let ALL_MEMORY:any = []
 let textSplitter: any
 
 module.exports = {
-    init:function(settings:any){
+    init:async function(settings:any){
         //get data from from db
         if(settings.CHUNK_SIZE) CHUNK_SIZE = settings.CHUNK_SIZE
         textSplitter = new RecursiveCharacterTextSplitter({ chunkSize: CHUNK_SIZE });
@@ -55,6 +55,10 @@ module.exports = {
         //get default brain
 
         //load default brain
+
+        return true
+    },
+    info:function(){
 
         return true
     },

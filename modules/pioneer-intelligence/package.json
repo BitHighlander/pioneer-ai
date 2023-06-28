@@ -1,6 +1,6 @@
 {
   "name": "@pioneer-platform/pioneer-intelligence",
-  "version": "8.1.17",
+  "version": "8.1.19",
   "main": "./lib/index.js",
   "types": "./lib/main.d.ts",
   "scripts": {

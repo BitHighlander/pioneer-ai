@@ -158,11 +158,12 @@ const create_view = async function(view:any,message:any,data:any){
                         inline: true,
                         setColor: '#ff002b'
                     }
+                    log.info(tag,"entry: ",entry)
                     allFields.push(entry)
                 }
 
                 // code block
-                const embed = new EmbedBuilder()
+                const embedTask = new EmbedBuilder()
                     .setColor('#0099ff')
                     .setTitle(data.message+ ":" +data.summary)
                     .setDescription(data.finalGoal)
@@ -172,8 +173,31 @@ const create_view = async function(view:any,message:any,data:any){
                     .setFooter({ text: "Pioneer", iconURL: "https://cdn3.vectorstock.com/i/1000x1000/50/22/green-compass-vector-3755022.jpg" });
 
 
-                output.embeds.push(embed)
+                output.embeds.push(embedTask)
                 break;
+            case 'insight':
+                log.info("view:     ",view)
+                let params = Object.keys(view.data)
+                log.info(tag,"params: ",params)
+                let insights:any = []
+                for(let i = 0; i < params.length; i++){
+                    let param = params[i]
+                    insights.push({ name: param, value: view.data[param] })
+                }
+
+                // code block
+                const embedInsight = new EmbedBuilder()
+                    .setColor('#0099ff')
+                    .setTitle('intel:')
+                    .setDescription('Tx Insight Given')
+                    .addFields(
+                        insights
+                    )
+                    .setFooter({ text: 'Pioneer', iconURL: 'https://cdn3.vectorstock.com/i/1000x1000/50/22/green-compass-vector-3755022.jpg' });
+
+
+                output.embeds.push(embedInsight)
+                break
             default:
             // code block
         }
