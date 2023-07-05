@@ -114,19 +114,19 @@ let push_view = async function(task:any,channel:any){
     }
 }
 
-const add_knowledge = async function(input:string, data:any){
-    try{
-        //TODO make smart query
-        let context = await brain.query(input)
-        console.log("context: ",context)
-        push_sentence("background knowledge: "+context.text,data.channel)
-
-        //attach to
-        return context
-    }catch(e){
-        console.error(e)
-    }
-}
+// const add_knowledge = async function(input:string, data:any){
+//     try{
+//         //TODO make smart query
+//         let context = await brain.query(input)
+//         console.log("context: ",context)
+//         push_sentence("background knowledge: "+context.text,data.channel)
+//
+//         //attach to
+//         return context
+//     }catch(e){
+//         console.error(e)
+//     }
+// }
 
 const deliberate_on_input = async function(session:any,data:Data,username:string){
     const tag = " | deliberate_on_input | "
@@ -136,10 +136,9 @@ const deliberate_on_input = async function(session:any,data:Data,username:string
         output.views = []
         output.sentences = []
         //get keywords
-        let context = await add_knowledge(data.text,data)
 
         //Summarize
-        let summary = await ai.buildSummary(data.text, data.sessionInfo, context)
+        let summary = await ai.buildSummary(data.text, data.sessionInfo, {})
         if(!summary) throw Error("Missing Summary")
         log.info(tag,"summary: ",summary)
         if(!summary.summary) throw Error("Missing Summary.summary")
@@ -192,59 +191,57 @@ const deliberate_on_input = async function(session:any,data:Data,username:string
 
             let savedTask = await tasksDB.insert(task)
             log.info(tag,"savedTask: ",savedTask)
-
         }
 
+        if(summary.needsExternal || summary.needsExecution || true){
+            push_sentence("needsExternal: "+summary.needsExternal,data.channel)
 
-        // if(summary.needsExternal || summary.needsExecution || true){
-        //     push_sentence("needsExternal: "+summary.needsExternal,data.channel)
-        //
-        //     // let workResp = await build_work(data, summary)
-        //     let workResp = await ai.buildTask(summary)
-        //     log.info(tag,"workResp: ",workResp)
-        //     if(!workResp) throw Error("Missing workResp")
-        //     if(!workResp.summary) throw Error("Missing workResp.summary")
-        //     if(!workResp.finalGoal) throw Error("Missing workResp.finalGoal")
-        //     if(!workResp.keywords) throw Error("Missing workResp.keywords")
-        //     if(!workResp.steps) throw Error("Missing workResp.steps")
-        //
-        //     //verify all the steps are complete:false
-        //     for(let i = 0; i < workResp.steps.length; i++){
-        //         let step = workResp.steps[i]
-        //         if(step.complete){
-        //             workResp.steps[i].complete = false
-        //         }
-        //     }
-        //
-        //     // create taskId
-        //     let taskId = short.generate()
-        //     //TODO hack removeme
-        //     summary.keywords.push('search')
-        //     let task = {
-        //         taskId,
-        //         discordId:data.discordId,
-        //         sessionId:data.sessionId,
-        //         channel:data.channel,
-        //         owner:data.username,
-        //         keywords:summary.keywords,
-        //         summary:workResp.summary,
-        //         finalGoal:workResp.finalGoal,
-        //         steps:workResp.steps,
-        //         complete:false,
-        //         priority:10
-        //     }
-        //     //checkpoint display to discord
-        //     push_view(task,data.channel)
-        //
-        //     let savedTask = await tasksDB.insert(task)
-        //     log.info(tag,"savedTask: ",savedTask)
-        // } else {
-        //     log.info(tag,"Does not need external data, solve it now")
-        //     // let solution = await build_solution(data.text)
-        //     let solution = await ai.buildSolution(data.text)
-        //     log.info(tag,"solution: ",solution)
-        //     push_sentence("solution: "+JSON.stringify(solution),data.channel)
-        // }
+            // let workResp = await build_work(data, summary)
+            let workResp = await ai.buildTask(summary)
+            log.info(tag,"workResp: ",workResp)
+            if(!workResp) throw Error("Missing workResp")
+            if(!workResp.summary) throw Error("Missing workResp.summary")
+            if(!workResp.finalGoal) throw Error("Missing workResp.finalGoal")
+            if(!workResp.keywords) throw Error("Missing workResp.keywords")
+            if(!workResp.steps) throw Error("Missing workResp.steps")
+
+            //verify all the steps are complete:false
+            for(let i = 0; i < workResp.steps.length; i++){
+                let step = workResp.steps[i]
+                if(step.complete){
+                    workResp.steps[i].complete = false
+                }
+            }
+
+            // create taskId
+            let taskId = short.generate()
+            //TODO hack removeme
+            summary.keywords.push('search')
+            let task = {
+                taskId,
+                discordId:data.discordId,
+                sessionId:data.sessionId,
+                channel:data.channel,
+                owner:data.username,
+                keywords:summary.keywords,
+                summary:workResp.summary,
+                finalGoal:workResp.finalGoal,
+                steps:workResp.steps,
+                complete:false,
+                priority:10
+            }
+            //checkpoint display to discord
+            push_view(task,data.channel)
+
+            let savedTask = await tasksDB.insert(task)
+            log.info(tag,"savedTask: ",savedTask)
+        } else {
+            log.info(tag,"Does not need external data, solve it now")
+            // let solution = await build_solution(data.text)
+            let solution = await ai.buildSolution(data.text)
+            log.info(tag,"solution: ",solution)
+            push_sentence("solution: "+JSON.stringify(solution),data.channel)
+        }
 
     }catch(e){
         console.error(e)
@@ -293,10 +290,6 @@ let do_work = async function(){
 
 let onStart = async function(){
     try{
-        //lookup knowledge from db
-        let memory = ["base.txt"]
-        //load knowledge into memory
-        await brain.load(memory)
         do_work()
     }catch(e){
         log.error(e)
