@@ -65,7 +65,7 @@ var wait = require('wait-promise');
 var sleep = wait.sleep;
 var ai = require('@pioneer-platform/pioneer-intelligence');
 var _b = require("openai"), Configuration = _b.Configuration, OpenAIApi = _b.OpenAIApi;
-var OPENAI_API_KEY = process.env.OPENAI_API_KEY_4;
+var OPENAI_API_KEY = process.env.OPENAI_API_KEY;
 if (!OPENAI_API_KEY)
     throw Error("missing OPENAI_API_KEY");
 var configuration = new Configuration({
@@ -218,7 +218,7 @@ var save_skill = function (skill) {
 //save
 var do_work = function () {
     return __awaiter(this, void 0, void 0, function () {
-        var tag, work, allWork, context, contextString, result, saveSuccess, e_2;
+        var tag, work, allWork, result, saveSuccess, e_2;
         return __generator(this, function (_a) {
             switch (_a.label) {
                 case 0:
@@ -242,16 +242,13 @@ var do_work = function () {
                         throw Error("102: invalid work! missing username");
                     if (!work.channel)
                         throw Error("103: invalid work! missing channel");
-                    context = {
-                        API_KEY: process.env["GOOGLE_SEARCH_API_KEY"],
-                        OPENAI_API_KEY_4: process.env["OPENAI_API_KEY_4"],
-                        OPENAI_API_KEY_3: process.env["OPENAI_API_KEY_3"],
-                        GH_TOKEN: process.env["GH_TOKEN"],
-                    };
-                    contextString = JSON.stringify(context);
+                    //TODO get keywords from work
+                    //TODO get context from work
+                    //TODO get related skills
+                    //TODO get previous attempts
                     if (typeof (work.work) !== "string")
                         work.work = JSON.stringify(work.work);
-                    return [4 /*yield*/, ai.buildScript(work.work, contextString)];
+                    return [4 /*yield*/, ai.buildScript(work.work, {})];
                 case 4:
                     result = _a.sent();
                     log.info(tag, "result: ", result);

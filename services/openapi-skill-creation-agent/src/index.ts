@@ -34,7 +34,7 @@ let sleep = wait.sleep;
 let ai = require('@pioneer-platform/pioneer-intelligence')
 
 const { Configuration, OpenAIApi } = require("openai");
-let OPENAI_API_KEY = process.env.OPENAI_API_KEY_4
+let OPENAI_API_KEY = process.env.OPENAI_API_KEY
 if(!OPENAI_API_KEY) throw Error("missing OPENAI_API_KEY")
 let configuration = new Configuration({
     apiKey: OPENAI_API_KEY,
@@ -239,17 +239,10 @@ let do_work = async function(){
 
             //TODO get previous attempts
 
-            let context = {
-                API_KEY:process.env["GOOGLE_SEARCH_API_KEY"],
-                OPENAI_API_KEY_4:process.env["OPENAI_API_KEY_4"],
-                OPENAI_API_KEY_3:process.env["OPENAI_API_KEY_3"],
-                GH_TOKEN:process.env["GH_TOKEN"],
-            }
-            let contextString = JSON.stringify(context)
             if(typeof(work.work) !== "string") work.work = JSON.stringify(work.work)
             //build scripts from inputted code examples
             // let result = await build_a_script(work.work, contextString)
-            let result = await ai.buildScript(work.work, contextString)
+            let result = await ai.buildScript(work.work, {})
             log.info(tag,"result: ",result)
             log.info(tag,"result: ",typeof(result))
             if(typeof(result) === "string") result = JSON.parse(result)
