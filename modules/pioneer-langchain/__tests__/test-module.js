@@ -10,6 +10,7 @@ require('dotenv').config({path:"../../../../.env"})
 // import {query} from "../dist/index.js";
 let ai = require('../dist/index.js')
 
+
 //create
 let run_test = async function(){
     try{
@@ -24,6 +25,9 @@ let run_test = async function(){
         // let result = await ai.summarizeDapp(input)
         // console.log("result: ",result)
 
+        let query = 'tell me a joke'
+        let result = await ai.streamingQuery(query)
+        console.log("result: ",result)
     }catch(e){
         console.error(e)
     }
