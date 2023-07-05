@@ -24,7 +24,7 @@
     "@pioneer-platform/default-mongo": "latest",
     "@pioneer-platform/default-redis": "latest",
     "@pioneer-platform/loggerdog": "latest",
-    "@pioneer-platform/pioneer-intelligence": "8.1.10",
+    "@pioneer-platform/pioneer-intelligence": "latest",
     "@pioneer-platform/pioneer-rebalance": "^6.2.9",
     "@pioneer-platform/redis-queue": "^8.1.6",
     "asciichart": "^1.5.25",

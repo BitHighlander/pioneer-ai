@@ -38,9 +38,9 @@ let wait = require('wait-promise');
 let sleep = wait.sleep;
 
 let BOT_NAME = process.env['BOT_NAME'] || 'pioneer-task-queue'
-console.log("USING USE_GPT_4")
 const { Configuration, OpenAIApi } = require("openai");
-let OPENAI_API_KEY = process.env.OPENAI_API_KEY_4
+let OPENAI_API_KEY = process.env.OPENAI_API_KEY
+console.log("OPENAI_API_KEY: ",OPENAI_API_KEY)
 if(!OPENAI_API_KEY) throw Error("missing OPENAI_API_KEY")
 let configuration = new Configuration({
     apiKey: OPENAI_API_KEY,
