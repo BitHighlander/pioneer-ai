@@ -34,7 +34,7 @@ let sleep = wait.sleep;
 
 
 const { Configuration, OpenAIApi } = require("openai");
-let OPENAI_API_KEY = process.env.OPENAI_API_KEY_4
+let OPENAI_API_KEY = process.env.OPENAI_API_KEY
 if(!OPENAI_API_KEY) throw Error("missing OPENAI_API_KEY")
 let configuration = new Configuration({
     apiKey: OPENAI_API_KEY,
@@ -87,75 +87,6 @@ interface Skill {
     keywords:string[]
 }
 
-//test
-let build_solution = async function(result:any, task:any){
-    let tag = TAG+ " | build_solution | "
-    try{
-        let messages = [
-            {
-                role:"system",
-                content:"You are a solutions bot. you create the solution by using the data to create the solution. solutions use the data provided intelligently and solve the task! "
-            },
-            {
-                role:"system",
-                content:'you always output in the following JSON stringifies format { "solution": string, "solved":boolean, "summary":string, "keywords":string[]}'
-            },
-            {
-                role:"user",
-                content:"result of the skill is: "+JSON.stringify(result)+" and the task im trying to solve is "+JSON.stringify(task)
-            }
-        ]
-
-        //log.info(tag,"messages: ",messages)
-        //
-        let body = {
-            model: "gpt-4",
-            messages,
-        }
-        let response = await openai.createChatCompletion(body);
-        return response.data.choices[0].message.content
-    }catch(e){
-        console.error(e)
-    }
-}
-
-//verify output formated correct
-//test
-let validate_gpt_json_output = async function(output:string, e:any){
-    let tag = TAG+ " | validate_gpt_json_output | "
-    try{
-        let messages = [
-            {
-                role:"system",
-                content:"You are a cleanup bot. you take the output of a gpt-4 chatbot and clean it up. you remove all the system messages. you remove all the user messages. you remove all the content that is not a JSON response. you evaluate all fields of the JSON to verify it will parse with JSON. stringify without error. you never change any content"
-            },
-            {
-                role:"system",
-                content:'you always output in the following JSON stringifies format { "solution": string, "solved":boolean, "summary":string, "keywords":string[]}'
-            },
-            {
-                role:"user",
-                content:"the error was e: "+e.toString()
-            },
-            {
-                role:"user",
-                content:output
-            }
-        ]
-
-        //log.info(tag,"messages: ",messages)
-        //
-        let body = {
-            model: "gpt-4",
-            messages,
-        }
-        let response = await openai.createChatCompletion(body);
-        return response.data.choices[0].message.content
-    }catch(e){
-        console.error(e)
-    }
-}
-
 /***********************************************
  //        lib
  //***********************************************/
@@ -203,30 +134,10 @@ let do_work = async function(){
 
             //ask bot if solved
 
-            //if solved, summarize and return
-            let isSolved = await build_solution(work.result,work.task)
-            log.info(tag,"isSolved: ",isSolved)
-            try{
-                isSolved = JSON.parse(isSolved)
-            }catch(e){
-                isSolved = await validate_gpt_json_output(isSolved,e)
-                isSolved = JSON.parse(isSolved)
-            }
-
-            if(isSolved.solved){
-                //use AI to score the solution
-                log.info(tag,"SOLVED WINNING!!!!!")
-                push_sentence("Solution: "+isSolved.solution,work.channel)
-                //update mongo!
-                let update = await tasksDB.update({taskId:work.taskId},{$set:{solution:isSolved}})
-                log.info(tag,"update: ",update)
-                let update2 = await tasksDB.update({taskId:work.taskId},{$set:{complete:true}})
-                log.info(tag,"update2: ",update2)
-            }
 
             //pass back to delegation
             //release
-            redis.lpush(work.workId,JSON.stringify({success:true,solution:isSolved}))
+            // redis.lpush(work.workId,JSON.stringify({success:true,solution:isSolved}))
 
         } else {
             log.debug(tag,"queue empty!")

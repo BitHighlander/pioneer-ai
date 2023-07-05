@@ -30,6 +30,7 @@
     "asciichart": "^1.5.25",
     "chai": "^4.3.4",
     "dotenv": "^8.1.0",
+    "langchain": "^0.0.102",
     "node-cron": "^3.0.0",
     "openai": "^3.2.1",
     "sentence-tokenizer": "^1.0.1",
