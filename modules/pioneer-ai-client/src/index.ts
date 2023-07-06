@@ -4,14 +4,28 @@
     Make AI calls to Pioneer server
  */
 const TAG = " | pioneer-ai-client | "
-// import { BabyAGI } from "langchain/experimental/babyagi";
-// import { MemoryVectorStore } from "langchain/vectorstores/memory";
-// import { OpenAIEmbeddings } from "langchain/embeddings/openai";
-// import { OpenAI } from "langchain/llms/openai";
-// import { PromptTemplate } from "langchain/prompts";
-// import { LLMChain } from "langchain/chains";
-// import { ChainTool, SerpAPI, Tool } from "langchain/tools";
-// import { initializeAgentExecutorWithOptions } from "langchain/agents";
+let connection = require("@pioneer-platform/default-mongo")
+// const markets = require('@pioneer-platform/markets')
+let usersDB = connection.get('users')
+let pubkeysDB = connection.get('pubkeys')
+let txsDB = connection.get('transactions')
+let invocationsDB = connection.get('invocations')
+let utxosDB = connection.get('utxo')
+let devsDB = connection.get('developers')
+let blockchainsDB = connection.get('blockchains')
+let dappsDB = connection.get('apps')
+let nodesDB = connection.get('nodes')
+let assetsDB = connection.get('assets')
+let insightDB = connection.get('insight')
+
+usersDB.createIndex({id: 1}, {unique: true})
+usersDB.createIndex({username: 1}, {unique: true})
+txsDB.createIndex({txid: 1}, {unique: true})
+utxosDB.createIndex({txid: 1}, {unique: true})
+pubkeysDB.createIndex({pubkey: 1}, {unique: true})
+invocationsDB.createIndex({invocationId: 1}, {unique: true})
+txsDB.createIndex({invocationId: 1})
+
 // @ts-ignore
 import { OpenAI } from "langchain/llms/openai";
 // @ts-ignore
@@ -42,6 +56,273 @@ module.exports = {
 
 }
 
+let get_mongo_tools = async function(){
+    try{
+        let tools:any = []
+
+        //mongo tools
+        const findByName = async (name: string, runManager?: CallbackManagerForToolRun) => {
+            // Your custom code here
+            log.info("input: ",name)
+            let results = await dappsDB.find({name});
+            return JSON.stringify(results);
+        };
+
+        const findDappsByName: DynamicToolInput = {
+            name: "mongoQuery",
+            description: "find a dapp by a name",
+            func: findByName,
+        };
+        tools.push(new DynamicTool(findDappsByName))
+
+        // Find nodes by blockchain symbol
+        const findNodesBySymbol = async (symbol: string, runManager?: CallbackManagerForToolRun): Promise<string> => {
+            const nodes = await nodesDB.find({ symbol });
+            return JSON.stringify(nodes);
+        };
+
+        const findNodesBySymbolInput: DynamicToolInput = {
+            name: "mongoQuery",
+            description: "Find nodes by blockchain symbol",
+            func: findNodesBySymbol,
+        };
+        tools.push(new DynamicTool(findNodesBySymbolInput));
+
+        // Find nodes by tags
+        const findNodesByTags = async (tags: string[], runManager?: CallbackManagerForToolRun): Promise<string> => {
+            const nodes = await nodesDB.find({ tags: { $in: tags } });
+            return JSON.stringify(nodes);
+        };
+
+        const findNodesByTagsInput: DynamicToolInput = {
+            name: "mongoQuery",
+            description: "Find nodes by tags",
+            func: findNodesByTags,
+        };
+        tools.push(new DynamicTool(findNodesByTagsInput));
+
+        // Find nodes by fuzzy search in description
+        const findNodesByDescription = async (description: string, runManager?: CallbackManagerForToolRun): Promise<string> => {
+            const nodes = await nodesDB.find({ description: { $regex: description, $options: "i" } });
+            return JSON.stringify(nodes);
+        };
+
+        const findNodesByDescriptionInput: DynamicToolInput = {
+            name: "mongoQuery",
+            description: "Find nodes by fuzzy search in description",
+            func: findNodesByDescription,
+        };
+        tools.push(new DynamicTool(findNodesByDescriptionInput));
+
+        // Find assets by blockchain symbol
+        const findAssetsBySymbol = async (symbol: string, runManager?: CallbackManagerForToolRun): Promise<string> => {
+            const assets = await assetsDB.find({ symbol });
+            return JSON.stringify(assets);
+        };
+
+        const findAssetsBySymbolInput: DynamicToolInput = {
+            name: "mongoQuery",
+            description: "Find assets by blockchain symbol",
+            func: findAssetsBySymbol,
+        };
+        tools.push(new DynamicTool(findAssetsBySymbolInput));
+
+        // Find assets by tags
+        const findAssetsByTags = async (tags: string[], runManager?: CallbackManagerForToolRun): Promise<string> => {
+            const assets = await assetsDB.find({ tags: { $in: tags } });
+            return JSON.stringify(assets);
+        };
+
+        const findAssetsByTagsInput: DynamicToolInput = {
+            name: "mongoQuery",
+            description: "Find assets by tags",
+            func: findAssetsByTags,
+        };
+        tools.push(new DynamicTool(findAssetsByTagsInput));
+
+        // Find assets by fuzzy search in description
+        const findAssetsByDescription = async (description: string, runManager?: CallbackManagerForToolRun): Promise<string> => {
+            const assets = await assetsDB.find({ description: { $regex: description, $options: "i" } });
+            return JSON.stringify(assets);
+        };
+
+        const findAssetsByDescriptionInput: DynamicToolInput = {
+            name: "mongoQuery",
+            description: "Find assets by fuzzy search in description",
+            func: findAssetsByDescription,
+        };
+        tools.push(new DynamicTool(findAssetsByDescriptionInput));
+
+        // Find blockchains by symbol
+        const findBlockchainsBySymbol = async (symbol: string, runManager?: CallbackManagerForToolRun): Promise<string> => {
+            const blockchains = await blockchainsDB.find({ symbol });
+            return JSON.stringify(blockchains);
+        };
+
+        const findBlockchainsBySymbolInput: DynamicToolInput = {
+            name: "mongoQuery",
+            description: "Find blockchains by symbol",
+            func: findBlockchainsBySymbol,
+        };
+        tools.push(new DynamicTool(findBlockchainsBySymbolInput));
+
+        // Find blockchains by tags
+        const findBlockchainsByTags = async (tags: string[], runManager?: CallbackManagerForToolRun): Promise<string> => {
+            const blockchains = await blockchainsDB.find({ tags: { $in: tags } });
+            return JSON.stringify(blockchains);
+        };
+
+        const findBlockchainsByTagsInput: DynamicToolInput = {
+            name: "mongoQuery",
+            description: "Find blockchains by tags",
+            func: findBlockchainsByTags,
+        };
+        tools.push(new DynamicTool(findBlockchainsByTagsInput));
+
+        // Find blockchains by fuzzy search in description
+        const findBlockchainsByDescription = async (description: string, runManager?: CallbackManagerForToolRun): Promise<string> => {
+            const blockchains = await blockchainsDB.find({ description: { $regex: description, $options: "i" } });
+            return JSON.stringify(blockchains);
+        };
+
+        const findBlockchainsByDescriptionInput: DynamicToolInput = {
+            name: "mongoQuery",
+            description: "Find blockchains by fuzzy search in description",
+            func: findBlockchainsByDescription,
+        };
+        tools.push(new DynamicTool(findBlockchainsByDescriptionInput));
+
+
+        return tools
+    }catch(e){
+        log.error(e)
+    }
+}
+
+const get_pioneer_tools = async (pioneer: any) => [
+    {
+        name: "getNonce",
+        description: "This function takes an ETH address and returns the nonce",
+        func: async (input: string, runManager?: CallbackManagerForToolRun) => {
+            const nonce = await pioneer.GetNonce({ address: input });
+            return nonce.data;
+        },
+    },
+    {
+        name: "getPioneerHealth",
+        description: "This returns Pioneer's health status of its API and tells if Pioneer is online or offline",
+        func: async (input: string, runManager?: CallbackManagerForToolRun) => {
+            const health = await pioneer.Health();
+            return JSON.stringify(health.data);
+        },
+    },
+    {
+        name: "getGlobals",
+        description: "This function returns Pioneer's global information",
+        func: async (input: string, runManager?: CallbackManagerForToolRun) => {
+            const globals = await pioneer.Globals();
+            return JSON.stringify(globals.data);
+        },
+    },
+    {
+        name: "getCurrenciesChangelly",
+        description: "This function returns the list of supported currencies for Changelly",
+        func: async (input: string, runManager?: CallbackManagerForToolRun) => {
+            const currencies = await pioneer.CurrenciesChangelly();
+            return JSON.stringify(currencies.data);
+        },
+    },
+    {
+        name: "getStatus",
+        description: "This function returns Pioneer's status information",
+        func: async (input: string, runManager?: CallbackManagerForToolRun) => {
+            const status = await pioneer.Status();
+            return JSON.stringify(status.data);
+        },
+    },
+    {
+        name: "getInvocation",
+        description: "This function takes an invocation as input and returns the result",
+        func: async (input: string, runManager?: CallbackManagerForToolRun) => {
+            const invocation = input; // Set the actual invocation parameter from the input
+            const result = await pioneer.Invocation(invocation);
+            return JSON.stringify(result.data);
+        },
+    },
+    // {
+    //     name: "listUnspentBTC",
+    //     description: "This function returns the list of unspent transactions for Bitcoin",
+    //     func: async (input: string, runManager?: CallbackManagerForToolRun) => {
+    //         const list = await pioneer.ListUnspent({ network: 'BTC', xpub: input });
+    //         return JSON.stringify(list.data);
+    //     },
+    // },
+    // {
+    //     name: "listUnspentBCH",
+    //     description: "This function returns the list of unspent transactions for Bitcoin Cash",
+    //     func: async (input: string, runManager?: CallbackManagerForToolRun) => {
+    //         const list = await pioneer.ListUnspent({ network: 'BCH', xpub: input });
+    //         return JSON.stringify(list.data);
+    //     },
+    // },
+    // {
+    //     name: "listUnspentLTC",
+    //     description: "This function returns the list of unspent transactions for Litecoin",
+    //     func: async (input: string, runManager?: CallbackManagerForToolRun) => {
+    //         const list = await pioneer.ListUnspent({ network: 'LTC', xpub: input });
+    //         return JSON.stringify(list.data);
+    //     },
+    // },
+    // {
+    //     name: "listUnspentDOGE",
+    //     description: "This function returns the list of unspent transactions for Dogecoin",
+    //     func: async (input: string, runManager?: CallbackManagerForToolRun) => {
+    //         const list = await pioneer.ListUnspent({ network: 'DOGE', xpub: input });
+    //         return JSON.stringify(list.data);
+    //     },
+    // },
+    // {
+    //     name: "listUnspentDASH",
+    //     description: "This function returns the list of unspent transactions for Dash",
+    //     func: async (input: string, runManager?: CallbackManagerForToolRun) => {
+    //         const list = await pioneer.ListUnspent({ network: 'DASH', xpub: input });
+    //         return JSON.stringify(list.data);
+    //     },
+    // },
+    // {
+    //     name: "getAccountInfoETH",
+    //     description: "This function takes an ETH address and returns the account information",
+    //     func: async (input: string, runManager?: CallbackManagerForToolRun) => {
+    //         const info = await pioneer.instance.GetAccountInfo({ network: 'ETH', address: input });
+    //         return JSON.stringify(info.data);
+    //     },
+    // },
+    // {
+    //     name: "getAccountInfoBNB",
+    //     description: "This function takes a BNB address and returns the account information",
+    //     func: async (input: string, runManager?: CallbackManagerForToolRun) => {
+    //         const info = await pioneer.instance.GetAccountInfo({ network: 'BNB', address: input });
+    //         return JSON.stringify(info.data);
+    //     },
+    // },
+    // {
+    //     name: "getAccountInfoOSMO",
+    //     description: "This function takes an OSMO address and returns the account information",
+    //     func: async (input: string, runManager?: CallbackManagerForToolRun) => {
+    //         const info = await pioneer.instance.GetAccountInfo({ network: 'OSMO', address: input });
+    //         return JSON.stringify(info.data);
+    //     },
+    // },
+    // {
+    //     name: "getAccountInfoATOM",
+    //     description: "This function takes an ATOM address and returns the account information",
+    //     func: async (input: string, runManager?: CallbackManagerForToolRun) => {
+    //         const info = await pioneer.instance.GetAccountInfo({ network: 'ATOM', address: input });
+    //         return JSON.stringify(info.data);
+    //     },
+    // }
+].map((tool) => new DynamicTool(tool));
+
 let run_query = async function(queryKey:string, input:string){
     let tag = TAG + " | run_query | "
     try{
@@ -53,89 +334,9 @@ let run_query = async function(queryKey:string, input:string){
         let pioneer = new pioneerApi(spec,config)
         pioneer = await pioneer.init()
 
-        let paths = Object.keys(pioneer.api.definition.paths)
-        let dataMap = {}
-        for(let i = 0; i < paths.length; i++){
-            // log.info("paths[i]: ",paths[i])
-            let pathInfo = pioneer.api.definition.paths[paths[i]]
-            // log.info("pathInfo: ",pathInfo)
-            // log.info("pathInfo: ",JSON.stringify(pathInfo))
-            // @ts-ignore
-            // if(pathInfo.post){
-            //     // @ts-ignore
-            //     dataMap[pathInfo.post.operationId] = pathInfo.post
-            // }
-            if(pathInfo.get && pathInfo.get.description){
-                // @ts-ignore
-                dataMap[pathInfo.get.operationId] = pathInfo.get
-            }
-        }
-        // log.info("dataMap: ",dataMap)
-
-        // let tools = []
-        // let methods = Object.keys(pioneer)
-        // for(let i = 0; i < methods.length; i++){
-        //     let method = methods[i]
-        //     if (method[0] === method[0].toUpperCase()) {
-        //         // First letter is uppercase, do something
-        //         // @ts-ignore
-        //         if(dataMap[method] && dataMap[method].description){
-        //             console.log(method);
-        //             let tool = new DynamicTool({
-        //                 name: method,
-        //                 // @ts-ignore
-        //                 description: dataMap[method].description,
-        //                 func: async () =>
-        //                     new Promise(async (resolve) => {
-        //                         try{
-        //                             log.info("Calling function ",method)
-        //                             let result = await pioneer[method]()
-        //                             // let result = await pioneer.Health()
-        //                             log.info(tag, "result: ",result.data)
-        //                             resolve(JSON.stringify(result.data));
-        //                         }catch(e){
-        //                             resolve("no information here, try another query");
-        //                         }
-        //                     }),
-        //             })
-        //             tools.push(tool)
-        //         }
-        //
-        //     }
-        // }
-
-        // let tools:any = []
-        // const myFunction = async (input: string, runManager?: CallbackManagerForToolRun) => {
-        //     // Your custom code here
-        //     log.info("input: ",input)
-        //     return `your input was ${input + new Date().getTime()}, Run Manager: ${runManager}`;
-        // };
-        //
-        // const myTool: DynamicToolInput = {
-        //     name: "MyTool",
-        //     description: "This is a dynamic tool with parameters, it will add the current time to the input",
-        //     func: myFunction,
-        // };
-        //
-        // tools.push(new DynamicTool(myTool));
-
-        //
-        let tools:any = []
-        const myFunction = async (input: string, runManager?: CallbackManagerForToolRun) => {
-            // Your custom code here
-            log.info("input: ",input)
-            console.log("input: ",input)
-            let nonce = await pioneer.GetNonce({address:input})
-            return nonce.data;
-        };
-
-        const myTool: DynamicToolInput = {
-            name: "getNonce",
-            description: "this function intakes an ETH address and return the nonce",
-            func: myFunction,
-        };
-
-        tools.push(new DynamicTool(myTool));
+        let tools:any = await get_mongo_tools()
+        tools = tools.concat(await get_pioneer_tools(pioneer))
+        // let tools:any = await get_pioneer_tools(pioneer)
 
         const model = new OpenAI({
             // modelName: "gpt-4-0613",

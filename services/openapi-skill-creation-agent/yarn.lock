@@ -118,7 +118,7 @@
     dotenv "^8.2.0"
     typescript "^3.9.5"
 
-"@pioneer-platform/pioneer-intelligence@latest":
+"@pioneer-platform/pioneer-intelligence@^8.1.20":
   version "8.1.20"
   resolved "https://registry.yarnpkg.com/@pioneer-platform/pioneer-intelligence/-/pioneer-intelligence-8.1.20.tgz#7c95a9785da924bcd366a9c4d0984efb36c940bc"
   integrity sha512-WMjpWUHYFUWjah8NrCDs6wb1ou/zgV5D+WVesIemBsrzOWW0gowdWtfg7b1/0/d5KzSAB8FbKWQd7ybd1nOoEA==

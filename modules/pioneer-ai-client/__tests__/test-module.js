@@ -20,7 +20,10 @@ let run_test = async function(){
         // let result = await client.query(queryKey,input)
         // console.log("result: ",result)
 
-
+        let input = "can I trade doge to eth? how do I trade doge to eth?"
+        let queryKey = "key:337e39de-3f45-40ac-ace0-d60684d2b92f"
+        let result = await client.query(queryKey,input)
+        console.log("result: ",result)
 
     }catch(e){
         console.error(e)

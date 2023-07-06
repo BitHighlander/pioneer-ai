@@ -268,67 +268,67 @@ let solver = async function(task:any){
 
         // build_work_load(task,skillsRelated)
 
-        // for(let i = 0; i < task.steps.length; i++){
-        //     let step = task.steps[i]
-        //     log.info(tag,"step: ",step)
-        //     if(step.complete == true){
-        //         log.info(tag,"step already complete! skipping")
-        //         return
-        //     } else {
-        //         log.info(tag,"step: ",step)
-        //         push_sentence('Step:  '+step.action+' status: '+step.complete,task.channel)
-        //
-        //         //search skills related to task
-        //         //find related skills
-        //         let skillsRelated:any = []
-        //         for(let i = 0; i < task.keywords.length; i++){
-        //             let keyword = task.keywords[i]
-        //             let results = await skillsDB.find({keywords:{$all:[keyword]}})
-        //             skillsRelated = skillsRelated.concat(...skillsRelated,results)
-        //         }
-        //
-        //         //attempt full task solution
-        //         let performedSkills:any = task.performedSkills || []
-        //         if(skillsRelated && skillsRelated.length > 0){
-        //             //gather inputs
-        //             log.info(tag,"skillsRelated: ",skillsRelated)
-        //
-        //             for(let i = 0; i < skillsRelated.length; i++){
-        //                 let skill = skillsRelated[i]
-        //                 log.info(tag,"skill: ",skill)
-        //                 //if skill is not performed
-        //                 if(performedSkills.indexOf(skill.skillId) == -1){
-        //                     //perform skill
-        //                     push_sentence('found related skill  '+skill.skillId,task.channel)
-        //                     //calculate inputs
-        //                     let inputsTemplate = skill.inputs
-        //                     log.info(tag,"inputsTemplate: ",inputsTemplate)
-        //                     log.info(tag,"task: ",task)
-        //                     let inputs = await ai.findInputs(skill,task)
-        //                     // if(inputs.length > inputsTemplate.length) throw Error("ERROR too many inputs found! bad input object")
-        //                     // if(inputs.length !== inputsTemplate.length) throw Error("ERROR incorrect inputs! array length mismatch")
-        //                     log.info(tag,"inputs: ",inputs)
-        //
-        //                     //TODO handle the breakdown if multiple inputs are needed per skill
-        //                     //for each input, make separate query
-        //                     for(let i = 0; i < inputs.length; i++){
-        //                         let inputsSkill = inputs[i]
-        //                         inputsSkill = [inputsSkill]
-        //                         //TODO make this a view
-        //                         push_sentence('Attempting to execute skill:  '+skill.skillId + " with inputs: "+JSON.stringify(inputsSkill),task.channel)
-        //                         submit_exec_work(task,skill,inputs)
-        //                     }
-        //                 } else {
-        //                     push_sentence('Already Attempted skill  '+skill.skillId,task.channel)
-        //                 }
-        //             }
-        //         } else {
-        //             push_sentence('No related Skills found! create new skill  ',task.channel)
-        //             submit_skill_creator(task,step)
-        //         }
-        //     }
-        //     return
-        // } // end steps
+        for(let i = 0; i < task.steps.length; i++){
+            let step = task.steps[i]
+            log.info(tag,"step: ",step)
+            if(step.complete == true){
+                log.info(tag,"step already complete! skipping")
+                return
+            } else {
+                log.info(tag,"step: ",step)
+                push_sentence('Step:  '+step.action+' status: '+step.complete,task.channel)
+
+                //search skills related to task
+                //find related skills
+                let skillsRelated:any = []
+                for(let i = 0; i < task.keywords.length; i++){
+                    let keyword = task.keywords[i]
+                    let results = await skillsDB.find({keywords:{$all:[keyword]}})
+                    skillsRelated = skillsRelated.concat(...skillsRelated,results)
+                }
+
+                //attempt full task solution
+                let performedSkills:any = task.performedSkills || []
+                if(skillsRelated && skillsRelated.length > 0){
+                    //gather inputs
+                    log.info(tag,"skillsRelated: ",skillsRelated)
+
+                    for(let i = 0; i < skillsRelated.length; i++){
+                        let skill = skillsRelated[i]
+                        log.info(tag,"skill: ",skill)
+                        //if skill is not performed
+                        if(performedSkills.indexOf(skill.skillId) == -1){
+                            //perform skill
+                            push_sentence('found related skill  '+skill.skillId,task.channel)
+                            //calculate inputs
+                            let inputsTemplate = skill.inputs
+                            log.info(tag,"inputsTemplate: ",inputsTemplate)
+                            log.info(tag,"task: ",task)
+                            let inputs = await ai.findInputs(skill,task)
+                            // if(inputs.length > inputsTemplate.length) throw Error("ERROR too many inputs found! bad input object")
+                            // if(inputs.length !== inputsTemplate.length) throw Error("ERROR incorrect inputs! array length mismatch")
+                            log.info(tag,"inputs: ",inputs)
+
+                            //TODO handle the breakdown if multiple inputs are needed per skill
+                            //for each input, make separate query
+                            for(let i = 0; i < inputs.length; i++){
+                                let inputsSkill = inputs[i]
+                                inputsSkill = [inputsSkill]
+                                //TODO make this a view
+                                push_sentence('Attempting to execute skill:  '+skill.skillId + " with inputs: "+JSON.stringify(inputsSkill),task.channel)
+                                submit_exec_work(task,skill,inputs)
+                            }
+                        } else {
+                            push_sentence('Already Attempted skill  '+skill.skillId,task.channel)
+                        }
+                    }
+                } else {
+                    push_sentence('No related Skills found! create new skill  ',task.channel)
+                    submit_skill_creator(task,step)
+                }
+            }
+            return
+        } // end steps
     } catch(e) {
         log.error(tag,"e: ",e)
     }

@@ -33,7 +33,7 @@ const accounting = new Accounting(redis)
 
 const Tokenizer = require('sentence-tokenizer');
 const tokenizer = new Tokenizer('reddit');
-
+const Pioneer = require("@pioneer-platform/pioneer-client").default;
 
 let queue = require("@pioneer-platform/redis-queue")
 let connection  = require("@pioneer-platform/default-mongo")
@@ -42,12 +42,8 @@ let sleep = wait.sleep;
 
 let BOT_NAME = process.env['BOT_NAME'] || 'pioneer'
 const { Configuration, OpenAIApi } = require("openai");
-let OPENAI_API_KEY = process.env.OPENAI_API_KEY
-if(!OPENAI_API_KEY) throw Error("missing OPENAI_API_KEY")
-const configuration = new Configuration({
-    apiKey: process.env.OPENAI_API_KEY,
-});
-const openai = new OpenAIApi(configuration);
+let ai = require('@pioneer-platform/pioneer-intelligence')
+ai.init({})
 
 //const AWS = require('aws-sdk');
 const asciichart = require('asciichart');
@@ -64,6 +60,10 @@ const skillsDB = connection.get('skills')
 const discordRawDB = connection.get('discordRaw')
 const tasksDB = connection.get('tasks')
 
+let spec = process.env['URL_PIONEER_SPEC'] || 'https://pioneers.dev/spec/swagger.json'
+const config = {
+    queryKey: process.env['QUERY_KEY'] || 'gc-pioneer-ai',
+};
 /***********************************************
  //        lib
  //***********************************************/
@@ -85,12 +85,13 @@ const tasksDB = connection.get('tasks')
     improve itself
 
  */
-let CHUNK_SIZE = 10000
 
-let do_work = async function(){
+//clean discord messages
+let do_work_discord = async function(){
     let tag = TAG+" | do_work | "
     let work
     try{
+        let CHUNK_SIZE = 10000
         //intake collected data
 
         //process and refine data into skills
@@ -114,10 +115,44 @@ let do_work = async function(){
         log.info(tag,"rawData: ",rawData.length)
 
         //chunks of 2k chars
-        //summarize topics
+        // Chunks of 20,000 chars
+        const CHUNK_SIZE_AI = 10000;
+        const chunks = [];
+        for (let i = 0; i < rawData.length; i += CHUNK_SIZE_AI) {
+            chunks.push(rawData.substr(i, CHUNK_SIZE_AI));
+        }
 
-        //if topics convert interests then add to knowledge
+        // Summarize topics
+        let schema = {
+            topics: "array of topics of content",
+            summary: "a summary of the content",
+            insights: "give interesting insights to the content",
+            quality:
+                "1 - 10 of content, is it relevant to topics, is it spam, is it noise",
+            content:
+                "filtered content, a raw output of all the content condensed and removed of noise designed for saving a loading to a pinecone db later",
+        };
+        let objective =
+            "DO NOT ADD CONTENT< DO NOT IMAGINE CONTENT< DO NOT HALLUCINATE ONLY FILTER GIVEN CONTENT, Parse these raw discord logs and find topics and filter out noise and chatbot responses: I only want non-ai content "
 
+        let allData = []
+        let allTopics: any[] = []
+        for (let i = 0; i < chunks.length; i++) {
+            let result = await ai.analyzeData({data:chunks[i]},objective, schema);
+            log.info(tag, "result: ", result);
+            allData.push(result)
+            allTopics = allTopics.concat(result.topics)
+        }
+
+        let knowledgeBlock = {
+            title:"Discord:raw:ingest" + new Date().getTime(),
+            topics:allTopics,
+            data: allData
+        }
+
+        //save to knowledge
+        log.info(tag,"knowledgeBlock: ",knowledgeBlock)
+        await knowledgeDB.insert(knowledgeBlock)
     } catch(e) {
         log.error(tag,"e: ",e)
         log.error(tag,"e: ",e.message)
@@ -128,6 +163,30 @@ let do_work = async function(){
     //do_work()
 }
 
+//exmplore uncharted data
+let do_work_explore = async function(){
+    let tag = TAG + " | do_work_explore | "
+    try{
+        let pioneer = new Pioneer(spec, config);
+        pioneer = await pioneer.init();
+        //get random charting
+
+        let task = await pioneer.RandomCharting();
+        log.info(tag,"task: ",task)
+
+        //submit charting
+        let result = await pioneer.SubmitCharting(task);
+        log.info(tag,"result: ",result)
+
+    }catch(e){
+        console.error(e)
+    }
+}
+
 //start working on install
 log.info(TAG," worker started! ","")
-do_work()
+do_work_explore()
+
+
+
+

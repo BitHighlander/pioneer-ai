@@ -158,7 +158,7 @@ let summarize_string_to_schema = async function(input:string, schema:any){
             log.error("Failed to parse: ",e)
             output = generalized_json_parser(chatCompletion.data.choices[0].message.content, schema, e)
         }
-        //loop untill its valid
+        //loop until its valid
 
         return output
     }catch(e){
