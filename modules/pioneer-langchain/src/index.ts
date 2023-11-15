@@ -97,7 +97,6 @@ let run_query = async function(search: string) {
         let connection  = require("@pioneer-platform/default-mongo")
         const knowledgeDB = connection.get('knowledge');
         knowledgeDB.createIndex({title: 1}, {unique: true})
-        import * as fs from "fs";
 
         let vectorStore: any;
         let docs: any

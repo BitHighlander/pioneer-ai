@@ -198,6 +198,45 @@ const create_view = async function(view:any,message:any,data:any){
 
                 output.embeds.push(embedInsight)
                 break
+            case 'quote':
+                log.info("quote:     ",view)
+                let quoteInfo:any = []
+
+                // input
+                let sellAsset = view.data.sellAsset
+                quoteInfo.push({ name: "sellAsset", value: sellAsset })
+                //output
+                let buyAsset = view.data.buyAsset
+                quoteInfo.push({ name: "buyAsset", value: buyAsset })
+                //amount
+                let sellAmount = view.data.sellAmount
+                quoteInfo.push({ name: "sellAmount", value: sellAmount })
+                //address input
+                let senderAddress = view.data.senderAddress
+                quoteInfo.push({ name: "senderAddress", value: senderAddress })
+                //success fail
+                if(view.data.quote && view.data.quote.quoteId){
+                    quoteInfo.push({ name: "SUCCESS", value: view.data.quote.quoteId })
+                }
+
+                //error
+                if(view.data.quote && !view.data.quote.quoteId){
+                    quoteInfo.push({ name: "ERROR", value: view.data.quote.message })
+                }
+
+                // code block
+                const embedQuote = new EmbedBuilder()
+                    .setColor('#0099ff')
+                    .setTitle('intel:')
+                    .setDescription('QUOTE MADE')
+                    .addFields(
+                        quoteInfo
+                    )
+                    .setFooter({ text: 'Swaps.PRO', iconURL: 'https://cdn3.vectorstock.com/i/1000x1000/50/22/green-compass-vector-3755022.jpg' });
+
+
+                output.embeds.push(embedQuote)
+                break
             default:
             // code block
         }
